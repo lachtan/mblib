@@ -117,3 +117,7 @@ class TestCrate(unittest.TestCase):
 		}		
 		return _Crate(params)
 			
+
+if __name__ == '__main__':
+	unittest.main()
+

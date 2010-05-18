@@ -6,8 +6,14 @@ Knihovna by mela pokryvat problematiku
 - io streamu
 - prace nad FS
 - sitove komunikace (konecne normalni trida Socket)
-- fake objektu (mock, stub)
+- socket server pro opravdu snadne pouziti (zadne mixin)
+- logovani
+- fake objekty (mock, stub)
 - remake thread knihoven, lepe fungujici na linuxu
+- jsonrpc, lemi
+- navrhove vzory
+- system pro sireni eventu k snadnemu ukonceni vlaken
+
 
 
 # vim:tw=80:wrap:lbr
