@@ -2,9 +2,10 @@
 mbl/util/create.py
 original from Petr Cervenka
 
-Design Pattern Crate
+Crate Design Pattern
 """
 
+import re
 from operator import itemgetter
 
 __all__ = (
@@ -28,20 +29,29 @@ class Crate(object):
 	
 	
 	def __checkMissingKeys(self, params):
-		requiredKeys = set(self.conversions().keys())
+		requiredKeys = set(self.attributes().keys())
 		realKeys = set(params.keys())
 		missKeys = requiredKeys - realKeys		
 		if missKeys:
 			raise AttributeError('Missing keys: %s' % list(missKeys))
 
 	
+	def __keyChecker(self, key):
+		if not re.match(r'^[_a-zA-Z][_a-zA-Z0-9]*$', key):
+			raise AttributeError('Bad key name %s' % key)
+
+
 	def __setValues(self, params):
 		self.__values = {}
-		for key, conversion in self.conversions().items():
+		for key, requiredType in self.attributes().items():
 			value = params[key]
-			if conversion is not None:
-				value = conversion(value)
+			self.__checkType(requiredType, value)
 			self.__values[key] = value
+	
+	
+	def __checkType(self, requiredType, value):
+		if (requiredType is not None) and (not isinstance(value, requiredType)):
+			raise TypeError("Value %s isn't %s" % (repr(value), str(requiredType)))
 
 
 	def __str__(self):
@@ -66,7 +76,7 @@ class Crate(object):
 	
 	
 	def __hash__(self):
-		return hash(self.__values)
+		return hash(tuple(sorted(self.__values.items())))
 	
 	
 	def __eq__(self, other):
@@ -74,26 +84,28 @@ class Crate(object):
 
 
 	@classmethod
-	def conversions(cls):
+	def attributes(cls):
 		raise NotImplementedError()
 
 
 	@classmethod
 	def keys(cls):
-		return cls.conversions().keys()
+		return tuple(cls.attributes().keys())
 	
 	
 	@staticmethod
-	def createClass(name, conversions):
-		class TempCrate(Crate):
+	def createClass(name, attributes):
+		_attributes = dict(attributes)
+		
+		class _Crate(Crate):
 			__metaclass__ = CrateMeta
 			
 			@classmethod
-			def conversions(cls):
-				return conversions
-
-		TempCrate.__name__ = name
-		return TempCrate
+			def attributes(cls):
+				return _attributes
+		
+		_Crate.__name__ = name
+		return _Crate
 
 
 
