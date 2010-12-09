@@ -14,6 +14,10 @@ Knihovna by mela pokryvat problematiku
 - navrhove vzory
 - system pro sireni eventu k snadnemu ukonceni vlaken
 
+9.12.2010
+Mozna bych nemel tak slepe kopirovat tridy v Jave, ale vzit si z nich jen
+ty pekne myslenky. Hlavne proto, abych na vsechno nemel milion trid.
+
 
 
 # vim:tw=80:wrap:lbr

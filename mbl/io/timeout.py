@@ -1,0 +1,3 @@
+
+class TimeoutError(StandardError):
+	pass
