@@ -1,0 +1,36 @@
+InputsStream/OutputStream je základ pro všechna základní komunikační média
+Pokud na ně navazuji Reader/Writer je třeba řešit otázku kódovaní
+- možnost kdy používám 8bit je to šumák
+- když se používá nějaké 8bit lokální kódování, je to taky easy
+ (jaký háže Java vyjímky když tam rvu špatný znaky)
+- ovšem největší průser vidim v načítání UTF-8 textu, dopředu nelze určit délku
+  textu a musim to zpracovávat bajt po bajtu
+
+Jak Java řeší načítání za pomoci UTF-8?
+Neřeší to nijak :) Když se jí vstupní znak nezdá, prostě ho nahradí znakem 
+U+FFFD - replacement character used to replace an unknown or unprintable character
+
+Vzhledem k tomu že jsme v Pythonu, kde věci nemusíme dělat tak složitě jako
+v Javě, změnil bych tu trošku model proudů. Asi je zbytečné, striktně
+oddělovat bytové a znakové. Pokud třídy pro práci s nimi budou navrženy
+dostatečně transparetně, nemělo by ani vadit, který typ se zrovna zpracovávát.
+Lze pak jednoduše použít základní InputStream na něj navěsit Buffer dále pak
+CharsetDecoder a za něj teprve LineReader. Aby se v běžném používání nemuselo
+toto všechno dělat růčo jako v Jave, je tu Jonášův návrh na zřízení 
+továren, které poskytnou metody pro nejčastěji používané operace. Tím se
+usnadní používání knihovny, ale zároveň zůstane přístupný nízkoúrovňový přístup
+na vytváření složitějších spojení proudů a další programování vlastních filtrů.
+
+Je zde na zvážení využití metod available() a ready(). Každá má trošičku jiné
+chování. available() říká, kolik bajtů půjde načíst ze vstupního proudu, aniž
+by došlo k zablokování. ready() pak slouží jen k prostému oznámení, zda se
+proud nezablokuje následujícím čtením. Problém je v tom, že určité typy proudů
+nedokáží dopředu říct, kolik znaků půjde bez blokování načíst. Typicky třeba
+UTF-8 stream. Bez konkrétní znalosti načtených dat nelze dopředu určit, kolik
+takto vznikne unicode znaků. Zde tedy nevím, jaký zvolit správný model.
+
+Na závěr se pak nabízí úvaha, zda třídy pro práci s proudy nenazvat jinak než
+je tomu v Jave. Už z toho důvodu, že nepřebírám přesný Java model, ale nechal
+jsem se jím jen inspirovat. Stejná jména a trošku jiné chování, by pak mohlo
+být zavádějící.
+

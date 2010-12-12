@@ -1,47 +1,53 @@
 """
-Vyjimky pro chyby
+InputStream
+	int   available()
+	str   read(bytes)
+	int   skip(bytes)
+	None  close()
 
-Fyzicke streamy
-soubor
-socket
-memory buffer
-com port
-
-Filtry
+OutputStream
+	None  write(data)
+	None  flush()
+	None  close()
 
 Reader
-Writer
-
-FileInputStream
-FileOutputStream
-
-FileReader
-FileWriter
-
-StringBufferInputStream
-
-StringReader
-StringWriter
-
-BufferedInputStream
-BufferedOutputStream
-
-BufferedReader
-BufferedWriter
-
-BufferedLineReader - nacital by dopredne vesti bloky dat podle velikosti bufefru a
-metody InputStream.available() a pak s daty pracoval jiz svizneji
-a co treba jen InputStream -> InputStreamReader -> BufferedReader -> LineReader
-
-Reader & Writer - vsechno unicode? nebo dvojice trid?
-
-
-InputStreamReader(InputStream in)
-
+	bool  ready()
+	str   read(chars)
+	int   skip(chars)
+	None  close()
 
 IOError
-  - TimeoutError
-  - EOFError
+	TimeoutError
+	EOFError
+	
+# NOTICE #
+read() a skip() vzdy ceka na nejaky vstup, do te doby je blokujici, vratit
+muze pocet mensi nez vyzadovany, alze vzdy aspon jeden byte ci znak. Pri konci
+streamu - EOS vraci prazdny retezec. Pri chybe vyhazuje vyjimku IOError nebo jejiho
+potomka.
+Jakakoliv ze zakladnich metod muze vyhodit vyjiku IOError
+
+
+Stream types
+	file
+	socket
+	buffer (in memory)
+	serial port
+
+
+# QUESTIONS #
+Mely by byt operace nad temito tridami synchronizovany? Nebo je lepsi udelat
+dalsi obalove tridy, ktere toto budou resit?
+
+
+# NOTICE "ASCII8"
+cp437
+http://ascii-table.com/ascii-extended-pc-list.php
+http://ascii-table.com/ansi-codes.php
+
+
+# poznamka k prevodu neznamych znaku do unicode v jave
+http://en.wikipedia.org/wiki/Specials_(Unicode_block)
 """
 
 import os
@@ -82,7 +88,7 @@ class InputStream(object):
 
 
  	def skip(self, bytes):
- 		"""returns number of bytes where skipped"""
+ 		"""Returns number of bytes where skipped"""
  		# IOError
  		raise NotImplementedError
 
@@ -104,24 +110,6 @@ class OutputStream(object):
 
 	def write(self, data):
 		# IOError
-		raise NotImplementedError
-
-
-# ------------------------------------------------------------------------------
-# FilterInputStream
-# ------------------------------------------------------------------------------
-
-class FilterInputStream(InputStream):
-	def __init__(self, inputStream):
-		raise NotImplementedError
-
-
-# ------------------------------------------------------------------------------
-# FilterOutputStream
-# ------------------------------------------------------------------------------
-
-class FilterOutputStream(OutputStream):
-	def __init__(self, outputStream):
 		raise NotImplementedError
 
 
@@ -157,10 +145,7 @@ class Reader(object):
 
 class Writer(object):
 	def __init__(self, lock = None):
-		if lock is None:
-			self._lock = RLock()
-		else:
-			self._lock = lock
+		pass
 
 
 	def close(self):
@@ -193,12 +178,17 @@ class LineReader(Reader):
 
 
 	def setEndLineList(self, endLineList):
-		# udelat kopii
-		self.__endLineList = endLineList
+		for endLine in endLineList:
+			if type(endLine) not in (StringType, UnicodeType):
+				raise AttributeError('Not str or unicode %s' % repr(endLine))
+		self.__endLineList = tuple(endLineList)
 
 
 	def setMaxLineLength(self, maxLineLength):
-		self.__maxLineLength = int(maxLineLength)
+		_maxLineLength = int(maxLineLength)
+		if _maxLineLength < 0:
+			raise AttributeError("Length can't be negative: %d" % _maxLineLength)
+		self.__maxLineLength = _maxLineLength
 
 
 	def setDeleteEol(self, deleteEol):
@@ -288,7 +278,6 @@ class LineWriter(Writer):
 # FileInputStream
 # ------------------------------------------------------------------------------
 
-# synchronizovat operace?
 
 class FileInputStream(InputStream):
 	def __init__(self, pathname):
