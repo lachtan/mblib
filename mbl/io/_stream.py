@@ -1,163 +1,186 @@
 """
-InputStream
-	int   available()
-	str   read(bytes)
-	int   skip(bytes)
-	None  close()
+TODO
+pracuje s bajty:
+LineInputStream
+LineOutputStream
+LineIOStream ?
 
-OutputStream
-	None  write(data)
-	None  flush()
-	None  close()
+pracuji s unicode:
+LineReader
+LineWriter
+Line???
 
-Reader
-	bool  ready()
-	str   read(chars)
-	int   skip(chars)
-	None  close()
-
-IOError
-	TimeoutError
-	EOFError
-	
-# NOTICE #
-read() a skip() vzdy ceka na nejaky vstup, do te doby je blokujici, vratit
-muze pocet mensi nez vyzadovany, alze vzdy aspon jeden byte ci znak. Pri konci
-streamu - EOS vraci prazdny retezec. Pri chybe vyhazuje vyjimku IOError nebo jejiho
-potomka.
-Jakakoliv ze zakladnich metod muze vyhodit vyjiku IOError
-
-
-Stream types
-	file
-	socket
-	buffer (in memory)
-	serial port
-
-
-# QUESTIONS #
-Mely by byt operace nad temito tridami synchronizovany? Nebo je lepsi udelat
-dalsi obalove tridy, ktere toto budou resit?
-
-
-# NOTICE "ASCII8"
-cp437
-http://ascii-table.com/ascii-extended-pc-list.php
-http://ascii-table.com/ansi-codes.php
-
-
-# poznamka k prevodu neznamych znaku do unicode v jave
-http://en.wikipedia.org/wiki/Specials_(Unicode_block)
 """
 
-import os
+from types import StringType, IntType, LongType
 
 
-__all__ = (
-	'InputStream',
-	'OutputStream',
-	'Reader',
-	'Writer',
-	'LineReader',
-	'LineWriter',
-)
+# ------------------------------------------------------------------------------
+# Stream
+# ------------------------------------------------------------------------------
+
+class Stream(object):
+	def __init__(self):
+		self.__closed = False
+
+
+	def close(self):
+		self._checkClosed()
+		self.__closed = True
+
+
+ 	def _checkClosed(self):
+ 		if self.__closed:
+ 			raise IOError('Stream already closed')
 
 
 # ------------------------------------------------------------------------------
 # InputStream
 # ------------------------------------------------------------------------------
 
-class InputStream(object):
-	def available(self):
-		""" Returns an estimate of the number of bytes that can be read
-		(or skipped over) from this input stream without blocking by the next
-		invocation of a method for this input stream."""
-		# IOError
-		raise NotImplementedError
+class InputStream(Stream):
+	def __init__(self):
+		super(InputStream, self).__init__()
+
+
+	def isReady(self):
+		self._checkClosed()
+		return False
+
+
+	def availableBytes(self):
+		self._checkClosed()
+		return 0
 
 
 	def close(self):
-		# IOError
-		raise NotImplementedError
+		self._checkClosed()
 
 
 	def read(self, bytes = 1):
-		"""Returns string or '' if end of data"""
-		# IOError
-		raise NotImplementedError
+		self._checkClosed()
+		self.__checkIntArgument(bytes)
 
 
  	def skip(self, bytes):
- 		"""Returns number of bytes where skipped"""
- 		# IOError
- 		raise NotImplementedError
+ 		self._checkClosed()
+ 		self.__checkIntArgument(bytes)
+
+
+ 	def __checkIntArgument(self, value):
+		if type(bytes) not in (IntType, LongType):
+			raise AttributeError('Bytes argument must be integer')
+		if bytes < 1:
+			raise AttributeError('Bytes argument must be positive number')
 
 
 # ------------------------------------------------------------------------------
 # OutputStream
 # ------------------------------------------------------------------------------
 
-class OutputStream(object):
-	def close(self):
-		# IOError
-		raise NotImplementedError
+class OutputStream(Stream):
+	def __init__(self):
+		super(OutputStream, self).__init__()
 
 
 	def flush(self):
-		# IOError
-		raise NotImplementedError
+		self._checkClosed()
 
 
 	def write(self, data):
-		# IOError
-		raise NotImplementedError
+		self._checkClosed()
+		if type(data) != StringType:
+			raise AttributeError("Data must be string type: %s" % str(type(data)))
+
+
+# ------------------------------------------------------------------------------
+# IOStream
+# ------------------------------------------------------------------------------
+
+class IOStream(object):
+	def __init__(self, inputStream, outputStream):
+		self.__inputStream = inputStream
+		self.__outputStream = outputStream
+
+
+	def inputStream(self):
+		return self.__inputStream
+
+
+	def outputStream(self):
+		return self.__outputStream
+
+
+	def isReady(self):
+		return self.__inputStream.isReady()
+
+
+	def availableBytes(self):
+		return self.__inputStream.availableBytes()
+
+
+	def read(self, bytes = 1):
+		return self.__inputStream.read(bytes)
+
+
+ 	def skip(self, bytes):
+ 		return self.__inputStream.skip(bytes)
+
+
+	def flush(self):
+		return self.__outputStream.flush()
+
+
+	def write(self, data):
+		return self.__outputStream.write(data)
+
+
+	def close(self):
+		self.__inputStream.close()
+		self.__outputStream.close()
 
 
 # ------------------------------------------------------------------------------
 # Reader
 # ------------------------------------------------------------------------------
 
-class Reader(object):
-	def __init__(self, lock = None):
-		pass
-
-
-	def close(self):
-		raise NotImplementedError
+class Reader(Stream):
+	def __init__(self):
+		super(Reader, self).__init__()
 
 
 	def read(self, chars = 1):
-		raise NotImplementedError
+		self._checkClosed()
+		# kontrola na pocet znaku!
 
 
 	def ready(self):
-		#  Tells whether this stream is ready to be read.
-		raise NotImplementedError
+		self._checkClosed()
+		return False
 
 
  	def skip(self, characters):
- 		raise NotImplementedError
+ 		self._checkClosed()
+ 		return 0
 
 
 # ------------------------------------------------------------------------------
 # Writer
 # ------------------------------------------------------------------------------
 
-class Writer(object):
-	def __init__(self, lock = None):
-		pass
-
-
-	def close(self):
-		raise NotImplementedError
+class Writer(Stream):
+	def __init__(self):
+		super(Writer, self).__init__()
 
 
 	def flush(self):
-		raise NotImplementedError
+		self._checkClosed()
 
 
 	def write(self, text):
-		raise NotImplementedError
+		self._checkClosed()
+		# kontrola textu
+		return 0
 
 
 # ------------------------------------------------------------------------------
@@ -274,45 +297,3 @@ class LineWriter(Writer):
 		return self.__writer.write(text)
 
 
-# ------------------------------------------------------------------------------
-# FileInputStream
-# ------------------------------------------------------------------------------
-
-
-class FileInputStream(InputStream):
-	def __init__(self, pathname):
-		self.__stream = file(pathname, 'rb')
-
-
-	def available(self):
-		actualOffset = self.tell()
-		endOffset = self.seek(0, os.SEEK_END)
-		self.seek(actualOffset, os.SEEK_CUR)
-		return endOffset - endOffset
-
-
-	def close(self):
-		self.__stream.close()
-
-
-	def read(self, bytes = 1):
-		return self.__stream.read(bytes)
-
-
- 	def skip(self, bytes):
- 		originalOffset = self.tell()
- 		self.seek(bytes, os.SEEK_CUR)
- 		newOffset = self.tell()
- 		return newOffset - originalOffset
-
-
- 	def tell(self):
- 		return self.__stream.tell()
-
-
- 	def seek(self, offset, whence = os.SEEK_CUR):
- 		self.__stream.seek(offset, whence)
-
-
-	def fileno(self):
-		return self.__stream.fileno()
