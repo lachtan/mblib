@@ -1,0 +1,40 @@
+21.12.2010
+Sockety - základní koncept
+
+Jen jeste kratke zamysleni nad sockety. Zde bych si dokonce snad ani nevybral
+zadny vzor. Respektive jsem to jeste nikde nevidel pekne udelany. Dokonce ani
+v Jave ne. Primarne vubec nevidim zadny duvod michat klient a server model.
+Prestoze po navazani komunikace se to uz chova temer stejne, jsem za jasne
+oddeleni techto dvou modelu. Dle meho nazoru se pak zjednodusi ovladaci metody
+i celkova pruhlednost tech trid. Taktez bych nedaval typ spojeni (UDP, TCP,
+unix socket) nekam do konstruktoru, ale pojal bych to jako oddelene
+tridy, kde kazda ma presne dan svuj ucel. Pokud je potreba nejake spolecne
+chovani, neni prece problem pouzit nejakeho predka nebo pomocny objekt, ktery
+tuto funkcionalitu sdruzi.
+SocketTcpClient (zatim se menuje SocketClient) jake metody by mel mit?
+Mnohem zajimavejsi je ale SocketTcpServer. Tady se naprosto jasne vyhneme
+nejakym spicenym mixinum a podobnejm srackam, ktery bohuzel pouziva i samotny
+python. No on to teda dela dedenim od nekolika trid, ale me se ten model zle
+nelibi a prijde mi malo pruhlednej. Ja bych naopak tuhle tridu uplne oprostil
+od toho, v jakem kontextu pobezi. Hned me napadaj aspon ctyri. Jednovlaknova
+aplikace, ktera umi odbavovat jen jeden pozadavek v dany cas, multithread
+aplikace, multi proces aplikace a aplikace ktera je sice jednovlaknova, ale
+managuje vic spojeni naraz za pouziti select() metod v jave je pro to nejakej
+vznosnej nazev. Tim ze ta trida tohle vsechno nebude resit, muze zustat pekne
+cista a nezaneradena. Vlastne bych ty tride jen rek kde ma poslochat, nastavil
+listen() a podobny srandicky a pak uz ji jen predal callback, kterej bude
+volat, pokud dojde k navazani spojeni. Tomu pak preda nejaky objekt konfigurace
+a taktez to navazane spojeni. Co s tim pak ten objekt bude delat, uz
+SocketServer nezajima. V navaznosti na to by hned modul obsahoval tridy
+pro reseni prave multithread a fork, abys to nemusel pokazdy programovat.
+Na pouziti to bude v zasade vypadat uplne stejne jako zakladni
+SocketServer, akorat uz v novem vlakne nebo procesu popripade ve stejnem
+vlakne, ale jen s informaci ze ma v drzeni dalsi spojeni.
+
+
+Jonáš notes
+- Ty tridy podle ucelu/typu spojeni mi prijdou adekvatni.
+- uprava terminologie
+- Pripravene typy serveru se mi libi moc
+- pouzivat kqueue/epoll mechanismus nebo ekvivalent
+
