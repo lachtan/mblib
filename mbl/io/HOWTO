@@ -1,17 +1,17 @@
-21.12.2010
+﻿21.12.2010
 Finální návrh streamů lze shrnout do těchto bodů (nejsou řazeny podle
 důležitosti)
 
 1) Bude se striktně rozličovat byte stream a unicode stream.
 2) Byte stream by měli implementovat všechny objekty, které chtějí umět
-   komunikovat za pomoci streamu. 
+   komunikovat za pomoci streamu.
 3) Byte stream je zatím nejčastěji používaný stream.
 4) OutputStream kontroluje zda mu do metody write() přichází jen a puze datový
    typ str, jinak vyhazuje vyjímku.
 5) InputStream implementuje metodu isReady() i availableBytes(), jak si ji
    stream zařídí je jeho věc. Počet bajtů nemusí znát přesně, pak vrátí prostě
    jen 1.
-6) Existuje sada konvertorů z byte na unicode stream a zpět - za pomoci 
+6) Existuje sada konvertorů z byte na unicode stream a zpět - za pomoci
    kódovacích tabulek (národní kódování, UTF8 a spol).
 7) LineReader a LineWriter existuje i v mutaci pro byte stream.
 8) Všechny vyjímky jsou sjednoceny pod IOError.
@@ -32,7 +32,7 @@ Pokud na ně navazuji Reader/Writer je třeba řešit otázku kódovaní
   textu a musim to zpracovávat bajt po bajtu
 
 Jak Java řeší načítání za pomoci UTF-8?
-Neřeší to nijak :) Když se jí vstupní znak nezdá, prostě ho nahradí znakem 
+Neřeší to nijak :) Když se jí vstupní znak nezdá, prostě ho nahradí znakem
 U+FFFD - replacement character used to replace an unknown or unprintable character
 
 Vzhledem k tomu že jsme v Pythonu, kde věci nemusíme dělat tak složitě jako
@@ -41,7 +41,7 @@ oddělovat bytové a znakové. Pokud třídy pro práci s nimi budou navrženy
 dostatečně transparetně, nemělo by ani vadit, který typ se zrovna zpracovávát.
 Lze pak jednoduše použít základní InputStream na něj navěsit Buffer dále pak
 CharsetDecoder a za něj teprve LineReader. Aby se v běžném používání nemuselo
-toto všechno dělat růčo jako v Jave, je tu Jonášův návrh na zřízení 
+toto všechno dělat růčo jako v Jave, je tu Jonášův návrh na zřízení
 továren, které poskytnou metody pro nejčastěji používané operace. Tím se
 usnadní používání knihovny, ale zároveň zůstane přístupný nízkoúrovňový přístup
 na vytváření složitějších spojení proudů a další programování vlastních filtrů.
@@ -59,3 +59,55 @@ je tomu v Jave. Už z toho důvodu, že nepřebírám přesný Java model, ale n
 jsem se jím jen inspirovat. Stejná jména a trošku jiné chování, by pak mohlo
 být zavádějící.
 
+
+starsi poznamky
+
+InputStream
+	int   available()
+	str   read(bytes)
+	int   skip(bytes)
+	None  close()
+
+OutputStream
+	None  write(data)
+	None  flush()
+	None  close()
+
+Reader
+	bool  ready()
+	str   read(chars)
+	int   skip(chars)
+	None  close()
+
+IOError
+	TimeoutError
+	EOFError
+
+# NOTICE #
+read() a skip() vzdy ceka na nejaky vstup, do te doby je blokujici, vratit
+muze pocet mensi nez vyzadovany, ale vzdy aspon jeden byte ci znak. Pri konci
+streamu - EOS vraci prazdny retezec. Pri chybe vyhazuje vyjimku IOError nebo jejiho
+potomka.
+Jakakoliv ze zakladnich metod muze vyhodit vyjiku IOError
+
+
+Stream types
+	file
+	socket
+	buffer (in memory)
+	serial port
+
+
+# QUESTIONS #
+Mely by byt operace nad temito tridami synchronizovany? Nebo je lepsi udelat
+dalsi obalove tridy, ktere toto budou resit?
+
+
+# NOTICE "ASCII8"
+cp437
+http://ascii-table.com/ascii-extended-pc-list.php
+http://ascii-table.com/ansi-codes.php
+
+
+# poznamka k prevodu neznamych znaku do unicode v jave
+http://en.wikipedia.org/wiki/Specials_(Unicode_block)
