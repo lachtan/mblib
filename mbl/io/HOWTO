@@ -1,3 +1,28 @@
+21.12.2010
+Finální návrh streamů lze shrnout do těchto bodů (nejsou řazeny podle
+důležitosti)
+
+1) Bude se striktně rozličovat byte stream a unicode stream.
+2) Byte stream by měli implementovat všechny objekty, které chtějí umět
+   komunikovat za pomoci streamu. 
+3) Byte stream je zatím nejčastěji používaný stream.
+4) OutputStream kontroluje zda mu do metody write() přichází jen a puze datový
+   typ str, jinak vyhazuje vyjímku.
+5) InputStream implementuje metodu isReady() i availableBytes(), jak si ji
+   stream zařídí je jeho věc. Počet bajtů nemusí znát přesně, pak vrátí prostě
+   jen 1.
+6) Existuje sada konvertorů z byte na unicode stream a zpět - za pomoci 
+   kódovacích tabulek (národní kódování, UTF8 a spol).
+7) LineReader a LineWriter existuje i v mutaci pro byte stream.
+8) Všechny vyjímky jsou sjednoceny pod IOError.
+9) Eexistují tovární metody, které automatizuji často používané konstrukce
+   i s jejich filtry.
+10) Existuje třída IOStream, která sdružuje InputStream i OutputStream, aby se
+    zjednodušilo časté předávání obou těchto objektů.
+    Měla by tato třída mít implementovány nejaké další metody? Asi ne.
+
+
+
 InputsStream/OutputStream je základ pro všechna základní komunikační média
 Pokud na ně navazuji Reader/Writer je třeba řešit otázku kódovaní
 - možnost kdy používám 8bit je to šumák
