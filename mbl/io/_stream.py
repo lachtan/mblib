@@ -12,14 +12,32 @@ Line???
 
 """
 
-from types import StringType, IntType, LongType
+from types import StringType, UnicodeType, IntType, LongType
 
 
 # ------------------------------------------------------------------------------
-# Stream
+# constants
 # ------------------------------------------------------------------------------
 
-class Stream(object):
+UNLIMITED_LINE_LENGTH = 0
+
+
+# ------------------------------------------------------------------------------
+# functions
+# ------------------------------------------------------------------------------
+
+def _positiveNumberCheck(number):
+	if type(number) not in (IntType, LongType):
+		raise AttributeError('Bytes argument must be integer: ' % str(type(number)))
+	if bytes < 1:
+		raise AttributeError('Bytes argument must be positive number: %d' % number)
+
+
+# ------------------------------------------------------------------------------
+# _Stream
+# ------------------------------------------------------------------------------
+
+class _Stream(object):
 	def __init__(self):
 		self.__closed = False
 
@@ -31,6 +49,7 @@ class Stream(object):
 
  	def _checkClosed(self):
  		if self.__closed:
+ 			# Nejaka vhodnejsi vyjimka?
  			raise IOError('Stream already closed')
 
 
@@ -38,7 +57,7 @@ class Stream(object):
 # InputStream
 # ------------------------------------------------------------------------------
 
-class InputStream(Stream):
+class InputStream(_Stream):
 	def __init__(self):
 		super(InputStream, self).__init__()
 
@@ -59,26 +78,19 @@ class InputStream(Stream):
 
 	def read(self, bytes = 1):
 		self._checkClosed()
-		self.__checkIntArgument(bytes)
+		_positiveNumberCheck(bytes)
 
 
  	def skip(self, bytes):
  		self._checkClosed()
- 		self.__checkIntArgument(bytes)
-
-
- 	def __checkIntArgument(self, value):
-		if type(bytes) not in (IntType, LongType):
-			raise AttributeError('Bytes argument must be integer')
-		if bytes < 1:
-			raise AttributeError('Bytes argument must be positive number')
+ 		_positiveNumberCheck(bytes)
 
 
 # ------------------------------------------------------------------------------
 # OutputStream
 # ------------------------------------------------------------------------------
 
-class OutputStream(Stream):
+class OutputStream(_Stream):
 	def __init__(self):
 		super(OutputStream, self).__init__()
 
@@ -97,8 +109,9 @@ class OutputStream(Stream):
 # IOStream
 # ------------------------------------------------------------------------------
 
-class IOStream(object):
+class IOStream(_Stream):
 	def __init__(self, inputStream, outputStream):
+		super(IOStream, self).__init__()
 		self.__inputStream = inputStream
 		self.__outputStream = outputStream
 
@@ -112,30 +125,37 @@ class IOStream(object):
 
 
 	def isReady(self):
+		self._checkClosed()
 		return self.__inputStream.isReady()
 
 
 	def availableBytes(self):
+		self._checkClosed()
 		return self.__inputStream.availableBytes()
 
 
 	def read(self, bytes = 1):
+		self._checkClosed()
 		return self.__inputStream.read(bytes)
 
 
  	def skip(self, bytes):
+ 		self._checkClosed()
  		return self.__inputStream.skip(bytes)
 
 
 	def flush(self):
+		self._checkClosed()
 		return self.__outputStream.flush()
 
 
 	def write(self, data):
+		self._checkClosed()
 		return self.__outputStream.write(data)
 
 
 	def close(self):
+		super(IOStream, self).close()
 		self.__inputStream.close()
 		self.__outputStream.close()
 
@@ -144,23 +164,25 @@ class IOStream(object):
 # Reader
 # ------------------------------------------------------------------------------
 
-class Reader(Stream):
+class Reader(_Stream):
 	def __init__(self):
 		super(Reader, self).__init__()
 
 
 	def read(self, chars = 1):
 		self._checkClosed()
-		# kontrola na pocet znaku!
+		_positiveNumberCheck(chars)
+		return ''
 
 
-	def ready(self):
+	def isReady(self):
 		self._checkClosed()
 		return False
 
 
- 	def skip(self, characters):
+ 	def skip(self, chars):
  		self._checkClosed()
+ 		_positiveNumberCheck(chars)
  		return 0
 
 
@@ -168,7 +190,7 @@ class Reader(Stream):
 # Writer
 # ------------------------------------------------------------------------------
 
-class Writer(Stream):
+class Writer(_Stream):
 	def __init__(self):
 		super(Writer, self).__init__()
 
@@ -179,8 +201,59 @@ class Writer(Stream):
 
 	def write(self, text):
 		self._checkClosed()
-		# kontrola textu
+		if type(text) != UnicodeType:
+			raise AttributeError('Text must be unicode: %s' % str(type(text)))
 		return 0
+
+
+# ------------------------------------------------------------------------------
+# ReaderWriter
+# ------------------------------------------------------------------------------
+
+class ReaderWriter(_Stream):
+	def __init__(self, reader, writer):
+		super(ReaderWriter, self).__init__()
+		self.__reader = reader
+		self.__writer = writer
+
+
+	def reader(self):
+		return self.__reader
+
+
+	def writer(self):
+		return self.__writer
+
+
+	def read(self, chars = 1):
+		self._checkClosed()
+		return self.__reader.read(chars)
+
+
+	def isReady(self):
+		self._checkClosed()
+		return self.__reader.isReady()
+
+
+ 	def skip(self, chars):
+ 		self._checkClosed()
+ 		return self.__reader.skip(chars)
+
+
+	def flush(self):	
+		self._checkClosed()
+		return self.__writer.flush()
+
+
+	def write(self, text):
+		self._checkClosed()
+		return self.__writer.write(text)
+
+
+	def close(self):
+		super(ReaderWriter, self).close()
+		self.__reader.close()
+		self.__writer.close()
 
 
 # ------------------------------------------------------------------------------
@@ -189,14 +262,13 @@ class Writer(Stream):
 
 class LineReader(Reader):
 	__END_LINE_LIST = ('\r\n', '\n')
-	__UNLIMITED_LINE_LENGTH = 0
 
 
 	def __init__(self, reader):
 		Reader.__init__(self)
 		self.__reader = reader
 		self.setEndLineList(self.__END_LINE_LIST)
-		self.setMaxLineLength(self.__UNLIMITED_LINE_LENGTH)
+		self.setMaxLineLength(self.UNLIMITED_LINE_LENGTH)
 		self.setDeleteEol(False)
 
 
@@ -249,16 +321,16 @@ class LineReader(Reader):
 		return self.__reader.close()
 
 
-	def read(self, *args, **kwargs):
-		return self.__reader.read(*args, **kwargs)
+	def read(self, chars = 1):
+		return self.__reader.read(chars)
 
 
-	def ready(self):
-		return self.__reader.ready()
+	def isReady(self):
+		return self.__reader.isReady()
 
 
- 	def skip(self, characters):
- 		return self.__reader.skip(characters)
+ 	def skip(self, chars):
+ 		return self.__reader.skip(chars)
 
 
 # ------------------------------------------------------------------------------
@@ -280,9 +352,8 @@ class LineWriter(Writer):
 
 
 	def writeLine(self, *args):
-		text = ''.join(map(str, args))
+		text = u''.join(map(str, args)) + self.__eol
 		self.write(text)
-		self.newLine()
 
 
 	def close(self):
@@ -296,4 +367,11 @@ class LineWriter(Writer):
 	def write(self, text):
 		return self.__writer.write(text)
 
+
+# ------------------------------------------------------------------------------
+# cleaning
+# ------------------------------------------------------------------------------
+
+del _Stream
+del _positiveNumberCheck
 

@@ -1,3 +1,4 @@
+from mbl.io._stream import UNLIMITED_LINE_LENGTH
 from mbl.io._stream import InputStream
 from mbl.io._stream import OutputStream
 from mbl.io._stream import InputStream
@@ -13,3 +14,5 @@ from mbl.io._buffer import BufferOutputStream
 
 from mbl.io._file import FileInputStream
 
+from mbl.io._filter import InputStreamReader
+from mbl.io._filter import OutputStreamWriter

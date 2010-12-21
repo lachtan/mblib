@@ -1,0 +1,7 @@
+mbl.net
+HttpServer - wrapper pro wsgi - takze jine jmeno
+HttpClient - klient obyc i obal pro curl
+
+mb.net.socket
+Klient - zatim jen pro TCP
+Server - model pro simple aplikaci i pro vlakna i pro fork i pro cokoliv dalsiho ;)
