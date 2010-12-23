@@ -1,19 +1,28 @@
-"""
-TODO
-
-- vlastnosti socketu
-- timeout
-- pouziti select
-
-jak sem pak nacpat socket pair minimalne kvuli testovani
-"""
-
 from __future__ import absolute_import
 import socket
 import select
+import errno
 from mbl.io import InputStream, OutputStream, IOStream
-from mbl.io import TimeoutError
+from mbl.io import Timeout, TimeoutError
 
+
+"""
+class SignalSafe(object):
+	def __init__(self, exceptionClass):
+	def call(callback, *args, **kwargs):
+"""
+
+
+def signalSafeCall(callback, *args):
+	while True:
+		try:
+			return callback(*args)
+		except socket.error, e:
+			errorCode = e.args[0]
+			if errorCode == errno.EINTR:
+				continue
+			else:
+				raise
 
 # ------------------------------------------------------------------------------
 # Socket
@@ -45,8 +54,7 @@ class Socket(object):
 
 	def shutdown(self):
 		self.__socket.shutdown(socket.SHUT_RDWR)
-		self.__outputStream.close()
-		self.__socket.close()
+		self.close()
 
 
 	def close(self):
@@ -85,72 +93,75 @@ class SocketClient(object):
 # ------------------------------------------------------------------------------
 
 class SocketInputStream(InputStream):
+	__SELECT_READ_INDEX = 0
+	
+	
 	def __init__(self, socket, timeout):
+		super(SocketInputStream, self).__init__()
 		self.__socket = socket
 		self.__timeout = timeout
+		self.__select = SimpleSelect(socket, timeout)
 
 
 	def read(self, bytes = 1):
+		super(SocketInputStream, self).read(bytes)
 		try:
 			return self.__read(bytes)
-		except	socket.timeout:
+		except socket.timeout:
 			raise TimeoutError
+	
+	
+	def __read(self, bytes):
+		if self.ready(self.__timeout):
+			return signalSafeCall(self.__recv, bytes)
+		else:
+			raise TimeoutError
+	
 
-
-	def __read(self, bytes = 1):
-		data = ''
-		while len(data) < bytes:
-			self.__wait(self.__timeout)
-			data += self.__socket.recv(bytes - len(data))
-		return data
-
-
-	def __wait(self, timeout):
-		status = select.select([self.__socket], [], [], timeout)
-		ready = len(status[0]) == 1
-		if not ready:
-			raise TimeoutError('read', timeout)
-
-
-
+	def ready(self, timeout = Timeout.NONBLOCK):
+		super(SocketInputStream, self).ready(timeout)
+		return self.__select.readReady()
+	
+	
 # ------------------------------------------------------------------------------
 # SocketOutputStream
 # ------------------------------------------------------------------------------
 
 class SocketOutputStream(OutputStream):
+	__SELECT_WRITE_INDEX = 1
+	
+	
 	def __init__(self, socket, timeout):
 		super(SocketOutputStream, self).__init__()
 		self.__socket = socket
 		self.__timeout = timeout
+		self.__select = SimpleSelect(socket, timeout)
+
+
+	def ready(self, timeout = Timeout.NONBLOCK):
+		super(SocketOutputStream, self).ready(timeout)
+		return self.__select.writeReady()
 
 
 	def write(self, data):
 		super(SocketOutputStream, self).write(data)
-		startTime = time()
-		writtenBytes = 0
-		while True:
-			now = time()
-			duration = now - startTime
-			if duration > self.__timeout:
-				raise TimeoutError
-			timeout = self.__timeout - duration
-			self.__waitForWrite(timeout)
-			bytes = self.__socket.send(data[writtenBytes:])
-			writtenBytes += bytes
-			if writtenBytes == len(data):
-				return
-
-
-	def __waitForWrite(self, timeout):
-		status = select([], [self.__socket], [], timeout)
-		if len(status[1]) == 0:
+		try:
+			self.__write(data)
+		except socket.timeout:
 			raise TimeoutError
-
-
-	def _write(self, data):
-		super(SocketOutputStream, self).write(data)
-		self.__socket.sendall(data)
-
+	
+	
+	def __write(self, data):
+		if self.ready(self.__timeout):
+			return signalSafeCall(self.__sendall, data)
+		else:
+			raise TimeoutError
+	
+	
+	def writeNonblock(self, data):
+		super(SocketOutputStream, self).writeNonblock(data)
+		return signalSafeCall(self.__socket.send, data)
+		
 
 # ------------------------------------------------------------------------------
 #
@@ -168,7 +179,7 @@ class SocketServer(object):
 		# timeouty!
 
 
-	def accept(self)
+	def accept(self):
 		clientSocket, clientAddress = self.__socket.accept()
 		return Socket(clientSocket, clientAddress)
 
@@ -177,3 +188,4 @@ class SocketServer(object):
 		while True:
 			clientSocket = self.accept()
 			callback(clientSocket, args)
+

@@ -1,18 +1,5 @@
-"""
-TODO
-pracuje s bajty:
-LineInputStream
-LineOutputStream
-LineIOStream ?
-
-pracuji s unicode:
-LineReader
-LineWriter
-Line???
-
-"""
-
 from types import StringType, UnicodeType, IntType, LongType
+from mbl.io import Timeout
 
 
 # ------------------------------------------------------------------------------
@@ -32,6 +19,10 @@ def _positiveNumberCheck(number):
 	if bytes < 1:
 		raise AttributeError('Bytes argument must be positive number: %d' % number)
 
+
+def _stringCheck(data):
+	if type(data) != StringType:
+		raise AttributeError("Data must be string type: %s" % str(type(data)))
 
 # ------------------------------------------------------------------------------
 # _Stream
@@ -62,18 +53,9 @@ class InputStream(_Stream):
 		super(InputStream, self).__init__()
 
 
-	def isReady(self):
+	def ready(self, timeout = Timeout.NONBLOCK):
 		self._checkClosed()
 		return False
-
-
-	def availableBytes(self):
-		self._checkClosed()
-		return 0
-
-
-	def close(self):
-		self._checkClosed()
 
 
 	def read(self, bytes = 1):
@@ -83,7 +65,8 @@ class InputStream(_Stream):
 
  	def skip(self, bytes):
  		self._checkClosed()
- 		_positiveNumberCheck(bytes)
+ 		data = self.read(bytes)
+ 		return len(data)
 
 
 # ------------------------------------------------------------------------------
@@ -95,15 +78,25 @@ class OutputStream(_Stream):
 		super(OutputStream, self).__init__()
 
 
+	def ready(self, timeout = Timeout.NONBLOCK):
+		self._checkClosed()
+		return False
+
+
 	def flush(self):
 		self._checkClosed()
 
 
 	def write(self, data):
 		self._checkClosed()
-		if type(data) != StringType:
-			raise AttributeError("Data must be string type: %s" % str(type(data)))
+		_stringCheck(data)
 
+
+	def writeNonblock(self, data):
+		self._checkClosed()
+		_stringCheck(data)
+		return 0
+	
 
 # ------------------------------------------------------------------------------
 # IOStream
@@ -374,4 +367,5 @@ class LineWriter(Writer):
 
 del _Stream
 del _positiveNumberCheck
+del _stringCheck
 

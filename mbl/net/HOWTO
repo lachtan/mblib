@@ -38,3 +38,7 @@ Jonáš notes
 - Pripravene typy serveru se mi libi moc
 - pouzivat kqueue/epoll mechanismus nebo ekvivalent
 
+
+23.12.2010
+Pro praci se select.select() by se hodila nejaka trida. Uz kvuli vyjimkam, ktere
+muze tato volani vyvolavat.

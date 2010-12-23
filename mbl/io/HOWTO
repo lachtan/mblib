@@ -1,4 +1,71 @@
-﻿21.12.2010
+23.12.2010 vecer
+Po dukladnem zvazeni cele situace jsem API jeste pooupravil. Trida InputStream
+prijde o metody isReady() a availableBytes(). Dlouho jsem nad metodou, ktera
+rekne pocet dostupnych byte bez zablokovani uvazoval, ale prece jen ji nakonec
+do API nedam. Je totiz dost proudu, kde tuto informaci nedokazu zjistit. Naopak
+toto chovani lze pomerne snadno doimplementovat ve vyssi vrtsve. Proste se
+nactou za pomoci neblokujicich read() nejaka data a ta se ulozi do bufferu.
+Metoda wait(timeout) se zmeni na ready(timeout = Timeout.NONBLOCK), zde je jista
+podobnost s Javou. Kdyz se metoda pouzije bez parametru, vraci stejne jako
+v Jave, zda lze uskutecnit neblokujici volani read(). Pokud je parametr nastaven
+je metoda zablokovana natrvalo nebo s moznosti timeoutu.
+Zatim posledni spornou veci je, tedy aspon pro me, pritomnost metod setTimeout()
+a getTimeout(). Do draftu jsem je tedy zahrnul. Nakonec kam jinam nastavit toto
+chovani. Leda do tridy, ktera stream vytvari. Zde skutecne nemam jasno.
+Navrhovane API je tedy nasledujici:
+
+InputStream
+	ready(timeout = Timeout.NONBLOCK): bool
+	read(bytes = 1): str
+	skip(bytes): int
+	setTimeout(timeout): None
+	getTimeout(): Timeout
+	close(): None
+
+OutputStream
+	ready(timeout = Timeout.NONBLOCK): bool
+	flush(): None
+	write(data): None	
+	writeNonblock(data): int
+	setTimeout(timeout): None
+	getTimeout(): Timeout
+	close(): None
+	
+
+23.12.2010 rano
+Navrh jak vyresit read/write opearce, tedy jejich chovani pro streamy. I zde
+je potreba dodrzovat pravidlo nejmensiho prekvapeni, coz znamena, ze se metody
+chovaji tak jak uzivatel/programator ocekava. Z tohoto duvodu nebudou zakladni
+metody nijak pretizene a dodatecne chovani bude dostupne pres dalsi metody.
+
+InputStream.read(bytes): str
+Metoda je blokujici, pokud nejsou k dispozici data. Pokud jsou, vrati nejaka
+do maximalni velikosti <bytes>. Pokud je pro stream nastaven timeout, muze
+byt vyhozena vyjimka TimeoutError, pokud aspon nejaka data nejsou k dispozici
+do casoveho limitu. Kdyz byl dosahnut konec streamu, vraci metoda prazdny
+retezec ''.
+
+InputStream.wait(timeout): bool
+Vrati True po nejkratsi mozne dobe, pokud jsou k dispozici nejaka data.
+V pripade ze timout vyprsi, vraci False.
+Zvazit, zda nezrusit metodu isReady() protoze tato metoda dela to stejne, vcetne
+timeoutu.
+
+OutputStream.write(data): None
+Metoda je blokujici, dokud nezapise vsechna data. Muze vyhodit vyjimku
+TimeoutError. Nevraci nic.
+
+OutputStream.wait(timeout): bool
+Uplne stejne chovani jako v InputStream. Tady to znamena, ze bez blokovani pujde
+zapsat aspon jeden byte pri volani
+
+OutputStream.write writeImmediately(data): int
+Pokusi se zapsat aspon nejaka data tak, aby volani nebylo blokujici. Vraci pocet
+uspesne zapsanych bajtu. Vysledek muze byt i 0.
+Pozn: chtelo by to jine jmeno metody.
+
+
+21.12.2010
 Finální návrh streamů lze shrnout do těchto bodů (nejsou řazeny podle
 důležitosti)
 
@@ -61,6 +128,17 @@ být zavádějící.
 
 
 starsi poznamky
+
+pracuje s bajty:
+LineInputStream
+LineOutputStream
+LineIOStream
+
+pracuji s unicode:
+LineReader
+LineWriter
+Line???
+
 
 InputStream
 	int   available()
