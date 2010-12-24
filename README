@@ -1,0 +1,44 @@
+mbl is Python library
+mbl is cool
+mbl is hot
+mbl is nice
+
+Knihovna, která se snaží řešit nedostatky v defaultních python knihovnách Při
+svém vzniku byla motivována několika hlavnimy tématy, které mě v pythonu trápí
+již roky.
+
+* IO streams
+Naprosto nejednotná koncepce. Chtěl jsem něco ve stylu Javy, i když třeba ne
+tak složitej s tolika třídama.
+
+* Socket operace
+Jednoduché a čisté vytváření socketu jak z pohledu klienta tak serveru a jeho
+snadné použití ve streamech. Pro SocketServer pak společný základní model jak
+pro single thread taj multi thread tak fork použití.
+
+* Práce s FS
+Jednak práce se souborem formou streamů a dále pak práce s adresářovou
+strukturou. Zde byla inspirací opět java, konkrétně pak java.io.File. Chtěl 
+jsem ale i snadné procházení celým stromem, filtrování tohoto stromu a další
+operace sjednocené do objektové formy.
+
+* Logging
+Hezké, čisté, snadné na použití, snadné na rozšíření.
+
+* Fake objekty
+Nějaké knihovny jistě už existují, ale bohužel jsem nenašel žádnou, která by 
+mě oslovila. Snadné použití mock a stub a snad i nějaké myšlenky z knihy
+the art of UNIT TESTING
+http://www.manning.com/osherove/
+
+* Threading
+Naprosto nepostačující modul pro použití v linuxu. Chybí mu conditions. S tím
+jak knihovna thread funguje teď se nedá pořádně pracovat. Za pomoci ctypes
+napsat vlastní ipmplementaci.
+
+* JsonRpc a LemiRpc
+
+* A mnoho dalších :)
+
+
+# vim:tw=80:wrap:lbr
