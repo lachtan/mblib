@@ -4,6 +4,7 @@ import select
 import errno
 from mbl.io import InputStream, OutputStream, IOStream
 from mbl.io import Timeout, TimeoutError
+from mbl.sys.select import SimpleSelect
 
 
 """
@@ -18,8 +19,7 @@ def signalSafeCall(callback, *args):
 		try:
 			return callback(*args)
 		except socket.error, e:
-			errorCode = e.args[0]
-			if errorCode == errno.EINTR:
+			if e.errno == errno.EINTR:
 				continue
 			else:
 				raise
@@ -57,6 +57,21 @@ class Socket(object):
 		self.close()
 
 
+	def fileno(self):
+		self.self.__socket.fileno()
+	
+	
+	def getsockopt(self, level, optname, buflen = None):
+		if buflen is None:
+			return self.self.__socket.getsockopt(level, optname)
+		else:
+			return self.self.__socket.getsockopt(level, optname, buflen)
+		
+	
+	def setsockopt(self, level, optname, value):
+		return self.__socket.setsockopt(level, optname, value)
+	
+	
 	def close(self):
 		self.__inputStream.close()
 		self.__outputStream.close()
@@ -64,38 +79,10 @@ class Socket(object):
 
 
 # ------------------------------------------------------------------------------
-# SocketClient
-# ------------------------------------------------------------------------------
-
-class SocketClient(object):
-	def __init__(self, address):
-		self.__address = address
-		self.setConnectTimeout(None)
-
-
-	def connect(self):
-		_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		_socket.settimeout(self.__connectTimeout)
-		try:
-			_socket.connect(self.__address)
-		except socket.timeout:
-			raise TimeoutError('connect', self.__connectTimeout)
-		#_socket.setblocking(0)
-		return Socket(_socket, self.__address)
-
-
-	def setConnectTimeout(self, timeout):
-		self.__connectTimeout = timeout
-
-
-# ------------------------------------------------------------------------------
 # SocketInputStream
 # ------------------------------------------------------------------------------
 
 class SocketInputStream(InputStream):
-	__SELECT_READ_INDEX = 0
-	
-	
 	def __init__(self, socket, timeout):
 		super(SocketInputStream, self).__init__()
 		self.__socket = socket
@@ -103,7 +90,7 @@ class SocketInputStream(InputStream):
 		self.__select = SimpleSelect(socket, timeout)
 
 
-	def read(self, bytes = 1):
+	def read(self, bytes):
 		super(SocketInputStream, self).read(bytes)
 		try:
 			return self.__read(bytes)
@@ -128,9 +115,6 @@ class SocketInputStream(InputStream):
 # ------------------------------------------------------------------------------
 
 class SocketOutputStream(OutputStream):
-	__SELECT_WRITE_INDEX = 1
-	
-	
 	def __init__(self, socket, timeout):
 		super(SocketOutputStream, self).__init__()
 		self.__socket = socket
@@ -164,7 +148,33 @@ class SocketOutputStream(OutputStream):
 		
 
 # ------------------------------------------------------------------------------
-#
+# SocketClient - TcpClient ?
+# ------------------------------------------------------------------------------
+
+class SocketClient(object):
+	def __init__(self, address):
+		self.__address = address
+		self.setConnectTimeout(None)
+
+
+	def connect(self):
+		_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		_socket.settimeout(self.__connectTimeout)
+		try:
+			_socket.connect(self.__address)
+		except socket.timeout:
+			raise TimeoutError('connect', self.__connectTimeout)
+		#_socket.setblocking(0)
+		return Socket(_socket, self.__address)
+
+
+	def setConnectTimeout(self, timeout):
+		self.__connectTimeout = timeout
+
+
+
+# ------------------------------------------------------------------------------
+# SocketServer - TcpServer?
 # ------------------------------------------------------------------------------
 
 class SocketServer(object):

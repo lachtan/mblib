@@ -16,7 +16,7 @@ UNLIMITED_LINE_LENGTH = 0
 def _positiveNumberCheck(number):
 	if type(number) not in (IntType, LongType):
 		raise AttributeError('Bytes argument must be integer: ' % str(type(number)))
-	if bytes < 1:
+	if number < 1:
 		raise AttributeError('Bytes argument must be positive number: %d' % number)
 
 
@@ -65,8 +65,7 @@ class InputStream(_Stream):
 
  	def skip(self, bytes):
  		self._checkClosed()
- 		data = self.read(bytes)
- 		return len(data)
+ 		return 0
 
 
 # ------------------------------------------------------------------------------
@@ -127,7 +126,7 @@ class IOStream(_Stream):
 		return self.__inputStream.availableBytes()
 
 
-	def read(self, bytes = 1):
+	def read(self, bytes):
 		self._checkClosed()
 		return self.__inputStream.read(bytes)
 
@@ -162,7 +161,7 @@ class Reader(_Stream):
 		super(Reader, self).__init__()
 
 
-	def read(self, chars = 1):
+	def read(self, chars):
 		self._checkClosed()
 		_positiveNumberCheck(chars)
 		return ''
@@ -218,7 +217,7 @@ class ReaderWriter(_Stream):
 		return self.__writer
 
 
-	def read(self, chars = 1):
+	def read(self, chars):
 		self._checkClosed()
 		return self.__reader.read(chars)
 
@@ -314,7 +313,7 @@ class LineReader(Reader):
 		return self.__reader.close()
 
 
-	def read(self, chars = 1):
+	def read(self, chars):
 		return self.__reader.read(chars)
 
 
@@ -360,12 +359,4 @@ class LineWriter(Writer):
 	def write(self, text):
 		return self.__writer.write(text)
 
-
-# ------------------------------------------------------------------------------
-# cleaning
-# ------------------------------------------------------------------------------
-
-del _Stream
-del _positiveNumberCheck
-del _stringCheck
 

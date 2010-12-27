@@ -38,10 +38,6 @@ class Timeout(object):
 		return self.__timeout > 0
 	
 	
-	def __float__(self):
-		return self.__timeout
-	
-	
 	def timeout(self):
 		return self.__timeout
 	

@@ -3,22 +3,22 @@ mbl is cool
 mbl is hot
 mbl is nice
 
-Knihovna, která se snaží řešit nedostatky v defaultních python knihovnách Při
+Knihovna, která se snaží řešit nedostatky v defaultních python knihovnách. Při
 svém vzniku byla motivována několika hlavnimy tématy, které mě v pythonu trápí
 již roky.
 
 * IO streams
 Naprosto nejednotná koncepce. Chtěl jsem něco ve stylu Javy, i když třeba ne
-tak složitej s tolika třídama.
+tak složitý model s tolika třídama.
 
 * Socket operace
 Jednoduché a čisté vytváření socketu jak z pohledu klienta tak serveru a jeho
 snadné použití ve streamech. Pro SocketServer pak společný základní model jak
-pro single thread taj multi thread tak fork použití.
+pro single thread tak multi thread tak fork použití.
 
 * Práce s FS
 Jednak práce se souborem formou streamů a dále pak práce s adresářovou
-strukturou. Zde byla inspirací opět java, konkrétně pak java.io.File. Chtěl 
+strukturou. Zde byla inspirací opět Java, konkrétně pak java.io.File. Chtěl 
 jsem ale i snadné procházení celým stromem, filtrování tohoto stromu a další
 operace sjednocené do objektové formy.
 

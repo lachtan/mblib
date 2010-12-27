@@ -1,6 +1,7 @@
 from types import StringType
 from StringIO import StringIO
 from mbl.io import InputStream, OutputStream
+from mbl.io import Timeout
 
 
 # ------------------------------------------------------------------------------
@@ -17,27 +18,24 @@ class BufferInputStream(InputStream):
 		self.__actualPosition = 0
 
 
-	def isReady(self):
+	def ready(self, timeout = Timeout.NONBLOCK):
 		self._checkClosed()
 		return True
 
 
-	def availableBytes(self):
-		self._checkClosed()
-		return self.__length - self.__actualPosition
-
-
-	def read(self, bytes = 1):
+	def read(self, bytes):
 		super(BufferInputStream, self).read(bytes)
-		if int(bytes) <= 0:
-			raise AttributeError('Number of bytes must be positive integer number: %s' % str(bytes))
 		data = self.__buffer[self.__actualPosition:self.__actualPosition + bytes]
 		self.__actualPosition = min(self.__actualPosition + bytes, self.__length)
 		return data
 
 
- 	def skip(self, bytes):
- 		return len(self.read(bytes))
+ 	def skip(self, bytes): 		 		
+ 		super(BufferInputStream, self).skip(bytes) 
+ 		newActualPosition = min(self.__actualPosition + bytes, self.__length)
+ 		skipBytes = newActualPosition - self.__actualPosition
+ 		self.__actualPosition = newActualPosition
+ 		return skipBytes
 
 
  	def __hash__(self):
@@ -55,14 +53,24 @@ class BufferOutputStream(OutputStream):
 		self.__buffer = StringIO()
 
 
-	def close(self):
-		super(BufferOutputStream, self).close()
-		self.__buffer.close()
-
+	def ready(self, timeout = Timeout.NONBLOCK):
+		super(BufferOutputStream, self).ready(timeout)
+		return True
+	
 
 	def write(self, data):
 		super(BufferOutputStream, self).write(data)
 		self.__buffer.write(data)
+	
+	
+	def writeNonblock(self, data):
+		self.write(data)
+		return len(data)
+
+
+	def close(self):
+		super(BufferOutputStream, self).close()
+		self.__buffer.close()
 
 
 	def __str__(self):
@@ -77,11 +85,29 @@ class BufferOutputStream(OutputStream):
 		return hash(str(self))
 
 
-
 # ------------------------------------------------------------------------------
 #
 # ------------------------------------------------------------------------------
 
 class BufferedInputStream(InputStream):
-	pass
+	def __init__(self, inputStream, bufferSize):
+		super(BufferedInputStream, self).__init__()
+		# kontrola bufferSize
+		self.__buffer = ''
+	
+	
+	def ready(self, timeout = Timeout.NONBLOCK):
+		super(BufferedInputStream, self).ready(timeout)
+
+		return False
+
+
+
+# ------------------------------------------------------------------------------
+#
+# ------------------------------------------------------------------------------
+
+class BufferedOutputStream(InputStream):
+	def __init__(self, outputStream, bufferSize):
+		pass
 

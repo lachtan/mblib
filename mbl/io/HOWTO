@@ -1,3 +1,9 @@
+27.12.2010
+Metodu InputStream.read(bytes) jsem zamerne zmenil tak, aby se vzdy musel
+zadavat pocet bajtu, ktere je treba nacist. Duvod je ten, aby nedochazelo
+k zamene s chovanim metody read() na nekterych python objektech, kde se 
+naopak metoda bez parametru snazi nacist vsechna data.
+
 23.12.2010 vecer
 Po dukladnem zvazeni cele situace jsem API jeste pooupravil. Trida InputStream
 prijde o metody isReady() a availableBytes(). Dlouho jsem nad metodou, ktera
@@ -16,10 +22,8 @@ Navrhovane API je tedy nasledujici:
 
 InputStream
 	ready(timeout = Timeout.NONBLOCK): bool
-	read(bytes = 1): str
+	read(bytes): str
 	skip(bytes): int
-	setTimeout(timeout): None
-	getTimeout(): Timeout
 	close(): None
 
 OutputStream
@@ -27,10 +31,8 @@ OutputStream
 	flush(): None
 	write(data): None	
 	writeNonblock(data): int
-	setTimeout(timeout): None
-	getTimeout(): Timeout
 	close(): None
-	
+
 
 23.12.2010 rano
 Navrh jak vyresit read/write opearce, tedy jejich chovani pro streamy. I zde

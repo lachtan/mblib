@@ -2,6 +2,7 @@ from __future__ import absolute_import
 import select
 import errno
 from time import time
+from mbl.io import Timeout
 
 
 class SimpleSelect(object):
@@ -15,17 +16,17 @@ class SimpleSelect(object):
 	
 	
 	def readReady(self):
-		return __isReady(self.__READ)
+		return self.__isReady(self.__READ)
 	
 	
-	def __writeReady(self):
-		return __isReady(self.__WRITE)
+	def writeReady(self):
+		return self.__isReady(self.__WRITE)
 		
 	
 	def __isReady(self, selectType):
 		if self.__timeout.isBlock():
 			return self.__isReadyBlock(selectType)
-		elif:
+		else:
 			return self.__isReadyWaiting(selectType)
 	
 	
