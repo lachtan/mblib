@@ -104,13 +104,13 @@ class BufferOutputStreamTest(unittest.TestCase):
 		parts = ('th', 'is is', ' some ', 't', 'ext')
 		for part in parts:
 			self.__outputStream.write(part)
-		self.assertEquals(''.join(parts), str(self.__outputStream))
+		self.assertEquals(''.join(parts), self.__outputStream.buffer())
 
 
-	def writeNonblock(self, data):
+	def test_writeNonblock(self):
 		parts = ('th', 'is is', ' some ', 't', 'ext')
 		for part in parts:
-			bytes = self.__outputStream.write(part)
+			bytes = self.__outputStream.writeNonblock(part)
 			self.assertEquals(len(part), bytes)		
-		self.assertEquals(''.join(parts), str(self.__outputStream))
+		self.assertEquals(''.join(parts), self.__outputStream.buffer())
 

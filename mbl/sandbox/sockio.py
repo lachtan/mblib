@@ -72,6 +72,8 @@ except Exception, e:
 	print e
 	print e.args
 	print errno.errorcode[e.args[0]]
+	print 'errno', e.errno
+	print 'strerror', e.strerror
 	raise
 exit()
 

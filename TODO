@@ -5,3 +5,9 @@ HttpClient - klient obyc i obal pro curl
 mb.net.socket
 Klient - zatim jen pro TCP
 Server - model pro simple aplikaci i pro vlakna i pro fork i pro cokoliv dalsiho ;)
+
+28.12.2010
+Vsechny tridy musi mit pretizen operator __str__ a __repr__
+mely by podporovat popripade i dalsi operatory
+__eq__
+__hash__

@@ -32,8 +32,8 @@ class Socket(object):
 	def __init__(self, socket, address):
 		self.__address = address
 		self.__socket = socket
-		self.__inputStream = SocketInputStream(self.__socket)
-		self.__outputStream = SocketOutputStream(self.__socket)
+		self.__inputStream = SocketInputStream(self.__socket, Timeout.BLOCK)
+		self.__outputStream = SocketOutputStream(self.__socket, Timeout.BLOCK)
 
 
 	def address(self):
@@ -100,7 +100,7 @@ class SocketInputStream(InputStream):
 	
 	def __read(self, bytes):
 		if self.ready(self.__timeout):
-			return signalSafeCall(self.__recv, bytes)
+			return signalSafeCall(self.__socket.recv, bytes)
 		else:
 			raise TimeoutError
 	
@@ -137,7 +137,7 @@ class SocketOutputStream(OutputStream):
 	
 	def __write(self, data):
 		if self.ready(self.__timeout):
-			return signalSafeCall(self.__sendall, data)
+			return signalSafeCall(self.__socket.sendall, data)
 		else:
 			raise TimeoutError
 	
@@ -148,10 +148,10 @@ class SocketOutputStream(OutputStream):
 		
 
 # ------------------------------------------------------------------------------
-# SocketClient - TcpClient ?
+# TcpClient
 # ------------------------------------------------------------------------------
 
-class SocketClient(object):
+class TcpClient(object):
 	def __init__(self, address):
 		self.__address = address
 		self.setConnectTimeout(None)
@@ -164,7 +164,7 @@ class SocketClient(object):
 			_socket.connect(self.__address)
 		except socket.timeout:
 			raise TimeoutError('connect', self.__connectTimeout)
-		#_socket.setblocking(0)
+		_socket.setblocking(1)
 		return Socket(_socket, self.__address)
 
 
@@ -174,21 +174,27 @@ class SocketClient(object):
 
 
 # ------------------------------------------------------------------------------
-# SocketServer - TcpServer?
+# TcpServer
 # ------------------------------------------------------------------------------
 
-class SocketServer(object):
+class TcpServer(object):
 	def __init__(self, serverAddress):
 		self.__serverAddress = serverAddress
 		self.__serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		# a nejake dalsi srandicky
-		# s.setsockopt(socket.IPPROTO_IP, socket.IP_HDRINCL, 1)
-		# kde tohle volat?
+		self.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self.__serverSocket.bind()
-		self.__serverSocket.listen(1)
+		self.listen(1)		
 		# timeouty!
 
 
+	def listen(self, value):
+		self.__serverSocket.listen(value)
+	
+	
+	def setsockopt(self, level, optname, value):
+		return self.__serverSocket.setsockopt(level, optname, value)
+
+	
 	def accept(self):
 		clientSocket, clientAddress = self.__socket.accept()
 		return Socket(clientSocket, clientAddress)

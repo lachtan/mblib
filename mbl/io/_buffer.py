@@ -1,8 +1,11 @@
 from types import StringType
 from StringIO import StringIO
 from mbl.io import InputStream, OutputStream
+from mbl.io import FilterInputStream, FilterOutputStream
 from mbl.io import Timeout
 
+# 32kB
+DEFAULT_BUFFER_SIZE = 2 ** 15
 
 # ------------------------------------------------------------------------------
 #
@@ -73,41 +76,79 @@ class BufferOutputStream(OutputStream):
 		self.__buffer.close()
 
 
-	def __str__(self):
+	def buffer(self):
 		return self.__buffer.getvalue()
 
 
-	def __eq__(self, other):
-		return str(self) == str(other)
-
-
 	def __hash__(self):
-		return hash(str(self))
+		return hash(self.buffer())
 
 
 # ------------------------------------------------------------------------------
-#
+# CachedInputStream
 # ------------------------------------------------------------------------------
 
-class BufferedInputStream(InputStream):
-	def __init__(self, inputStream, bufferSize):
-		super(BufferedInputStream, self).__init__()
+# Optimalizovat pro StringIO
+
+class CachedInputStream(FilterInputStream):
+	def __init__(self, inputStream, bufferSize = DEFAULT_BUFFER_SIZE):
+		super(CachedInputStream, self).__init__(inputStream)
+		self.__inputStream = inputStream
 		# kontrola bufferSize
+		self.__bufferSize = bufferSize
 		self.__buffer = ''
 	
 	
 	def ready(self, timeout = Timeout.NONBLOCK):
 		super(BufferedInputStream, self).ready(timeout)
-
-		return False
-
-
-
+		return (not self.__isEmpty()) or self.__inputStream.ready(timeout)
+	
+	
+	def __isEmpty(self):
+		return self.__buffer == ''
+		
+	
+	def read(self, bytes):
+		super(CachedInputStream, self).read(bytes)
+		if bytes > self.__bufferSize or bytes > len(self.__buffer):
+			self.__fillBuffer()
+		return self.__read(bytes)
+	
+	
+	def __fillBuffer(self):
+		if self.__isEmpty():
+			self.__buffer = self.__inputStream.read(self.__bufferSize)
+		if self.__isEmpty():
+			return
+		while len(self.__buffer) < self.__bufferSize:
+			if not self.__inputStream.ready():
+				return
+			bytes = self.__bufferSize - len(self.__buffer)
+			data = self.__inputStream.read(bytes)
+			if data == '':
+				return
+			self.__buffer += data
+	
+	
+	def __read(self, bytes):
+		if self.__isEmpty():
+			return ''
+		data = self.__buffer[:bytes]
+		self.__buffer = self.__buffer[len(data):]
+		return data
+	
+	
+	def _buffer(self):
+		return self.__buffer
+	
+	
 # ------------------------------------------------------------------------------
-#
+# CachedOutputStream
 # ------------------------------------------------------------------------------
 
-class BufferedOutputStream(InputStream):
-	def __init__(self, outputStream, bufferSize):
-		pass
+class CachedOutputStream(FilterOutputStream):
+	def __init__(self, outputStream, bufferSize = DEFAULT_BUFFER_SIZE):
+		super(CachedOutputStream, self).__init__(outputStream)
+		self.__outputStream = outputStream
+
 

@@ -3,13 +3,6 @@ from mbl.io import Timeout
 
 
 # ------------------------------------------------------------------------------
-# constants
-# ------------------------------------------------------------------------------
-
-UNLIMITED_LINE_LENGTH = 0
-
-
-# ------------------------------------------------------------------------------
 # functions
 # ------------------------------------------------------------------------------
 
@@ -58,7 +51,7 @@ class InputStream(_Stream):
 		return False
 
 
-	def read(self, bytes = 1):
+	def read(self, bytes):
 		self._checkClosed()
 		_positiveNumberCheck(bytes)
 
@@ -246,117 +239,5 @@ class ReaderWriter(_Stream):
 		super(ReaderWriter, self).close()
 		self.__reader.close()
 		self.__writer.close()
-
-
-# ------------------------------------------------------------------------------
-# LineReader
-# ------------------------------------------------------------------------------
-
-class LineReader(Reader):
-	__END_LINE_LIST = ('\r\n', '\n')
-
-
-	def __init__(self, reader):
-		Reader.__init__(self)
-		self.__reader = reader
-		self.setEndLineList(self.__END_LINE_LIST)
-		self.setMaxLineLength(self.UNLIMITED_LINE_LENGTH)
-		self.setDeleteEol(False)
-
-
-	def setEndLineList(self, endLineList):
-		for endLine in endLineList:
-			if type(endLine) not in (StringType, UnicodeType):
-				raise AttributeError('Not str or unicode %s' % repr(endLine))
-		self.__endLineList = tuple(endLineList)
-
-
-	def setMaxLineLength(self, maxLineLength):
-		_maxLineLength = int(maxLineLength)
-		if _maxLineLength < 0:
-			raise AttributeError("Length can't be negative: %d" % _maxLineLength)
-		self.__maxLineLength = _maxLineLength
-
-
-	def setDeleteEol(self, deleteEol):
-		self.__deleteEol = bool(deleteEol)
-
-
-	def readLine(self):
-		self.__line = ''
-		while True:
-			if self.__isEndedLine():
-				self.__correctLine()
-				return self.__line
-			char = self.read(1)
-			if char == '':
-				return self.__line
-			self.__line += char
-
-
-	def __isEndedLine(self):
-		if self.__maxLineLength > 0 and len(self.__line) >= self.__maxLineLength:
-			self.__end = ''
-			return True
-		for self.__end in self.__endLineList:
-			if self.__line.endswith(self.__end):
-				return True
-		return False
-
-
-	def __correctLine(self):
-		if self.__deleteEol and self.__end:
-			self.__line = self.__line[:-len(self.__end)]
-
-
-	def close(self):
-		return self.__reader.close()
-
-
-	def read(self, chars):
-		return self.__reader.read(chars)
-
-
-	def isReady(self):
-		return self.__reader.isReady()
-
-
- 	def skip(self, chars):
- 		return self.__reader.skip(chars)
-
-
-# ------------------------------------------------------------------------------
-# LineWriter
-# ------------------------------------------------------------------------------
-
-class LineWriter(Writer):
-	def __init__(self, writer):
-		self.__writer = writer
-		self.setEol('\n')
-
-
-	def setEol(self, eol):
-		self.__eol = eol
-
-
-	def newLine(self):
-		self.write(self.__eol)
-
-
-	def writeLine(self, *args):
-		text = u''.join(map(str, args)) + self.__eol
-		self.write(text)
-
-
-	def close(self):
-		return self.__writer.close()
-
-
-	def flush(self):
-		return self.__writer.flush()
-
-
-	def write(self, text):
-		return self.__writer.write(text)
 
 

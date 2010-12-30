@@ -42,3 +42,7 @@ Jonáš notes
 23.12.2010
 Pro praci se select.select() by se hodila nejaka trida. Uz kvuli vyjimkam, ktere
 muze tato volani vyvolavat.
+
+
+30.12.2010
+Kde by bylo vhodne nastavovat timeout pro socket operace?

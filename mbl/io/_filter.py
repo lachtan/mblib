@@ -1,58 +1,59 @@
 import codecs
 from mbl.io import Reader, Writer
+from mbl.io import Timeout
 
 
 # ------------------------------------------------------------------------------
-# InputStreamReader
+# FilterInputStream
 # ------------------------------------------------------------------------------
 
-class InputStreamReader(Reader):
-	def __init__(self, inputStream, encoding):
-		super(InputStreamReader, self).__init__()		
+class FilterInputStream(object):
+	def __init__(self, inputStream):
 		self.__inputStream = inputStream
-		codecs.lookup(encoding)
-		self.__encoding = encoding
-		self.__buffer = ''
-		
-	
-	def read(self, chars = 1):
-		# pracuje se self.__buffer
-		# bytes se musi nejak kouzelne nacitat
-		data = self.__inputStream(bytes)
-		# pokus se cast textu dekodovat
-		# UnicodeDecodeError
-		pass
-	
-	
-	def isReady(self):
-		return False
-		
-	
+
+
+	def ready(self, timeout = Timeout.NONBLOCK):
+		return self.__inputStream.ready(timeout)
+
+
+	def read(self, bytes):
+		return self.__inputStream.read(bytes)
+
+
+ 	def skip(self, bytes):
+ 		return self.__inputStream.bytes()
+
+
 	def close(self):
 		return self.__inputStream.close()
 
 
 # ------------------------------------------------------------------------------
-# OutputStreamWriter
+# FilterOutputStream
 # ------------------------------------------------------------------------------
 
-class OutputStreamWriter(Writer):
-	def __init__(self, outputStream, encoding):
-		super(OutputStreamWriter, self).__init__()		
+class FilterOutputStream(object):
+	def __init__(self, outputStream):
 		self.__outputStream = outputStream
-		codecs.lookup(encoding)
-		self.__encoding = encoding
+
+
+	def ready(self, timeout = Timeout.NONBLOCK):
+		return self.__outputStream.ready(timeout)
 
 
 	def flush(self):
 		return self.__outputStream.flush()
 
 
-	def write(self, text):
-		super(OutputStreamWriter, self).write(text)
-		# UnicodeEncodeError -> prebalit do IOError?
-		data = text.encode(self.__encoding)
-		bytes = self.__outputStream.write(data)
-		# co kdyz je bytes != len(data) ? jak to prepoctu na unicode znaky?
-		return len(text)
+	def write(self, data):
+		return self.__outputStream.write(data)
+
+
+	def writeNonblock(self, data):
+		return self.__outputStream.writeNonblock(data)
+
+
+	def close(self):
+		return self.__outputStream.close()
+
 
