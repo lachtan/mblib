@@ -94,6 +94,18 @@ class LineInputStream(FilterInputStream):
 		self.__lineScanner.setEndLineList(self.__END_LINE_LIST)
 
 
+	def setEndLineList(self, endLineList):
+		return self.__lineScanner.setEndLineList(endLineList)
+
+	
+	def setMaxLineLength(self, maxLineLength):
+		return self.__lineScanner.setMaxLineLength(maxLineLength)
+
+
+	def setDeleteEol(self, deleteEol):
+		return self.__lineScanner.setDeleteEol(deleteEol)
+
+
 	def readLine(self):
 		return self.__lineScanner.readLine()
 
@@ -137,8 +149,21 @@ class LineReader(FilterReader):
 		self.__lineScanner.setEndLineList(self.__END_LINE_LIST)
 
 
+	def setEndLineList(self, endLineList):
+		return self.__lineScanner.setEndLineList(endLineList)
+
+	
+	def setMaxLineLength(self, maxLineLength):
+		return self.__lineScanner.setMaxLineLength(maxLineLength)
+
+
+	def setDeleteEol(self, deleteEol):
+		return self.__lineScanner.setDeleteEol(deleteEol)
+
+
 	def readLine(self):
 		return self.__lineScanner.readLine()
+
 
 # ------------------------------------------------------------------------------
 # LineWriter
