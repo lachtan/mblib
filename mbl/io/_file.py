@@ -1,5 +1,6 @@
 import os
 from mbl.io import InputStream, OutputStream
+from mbl.io import Timeout
 
 
 # ------------------------------------------------------------------------------
@@ -10,26 +11,18 @@ class FileInputStream(InputStream):
 	def __init__(self, pathname):
 		super(FileInputStream, self).__init__()
 		self.__file = file(pathname, 'rb')
+		self.__select = SimpleSelect(self.__file, Timeout.BLOCK)
 
 
-	def isReady(self):
+	def ready(self, timeout = Timeout.NONBLOCK):
+		super(FileInputStream, self).ready(timeout)
+		return self.__select.readReady()
+
+	def ready(self, timeout = Timeout.BLOCK):
 		# POZOR muze otevrit rouru a pak se tam ty data budou zjevovat prubezne
 		self._checkClosed()
 		return True
 
-
-	def availableBytes(self):
-		self._checkClosed()
-
-		actualOffset = self.tell()
-		endOffset = self.seek(0, os.SEEK_END)
-		self.seek(actualOffset, os.SEEK_CUR)
-		return endOffset - endOffset
-
-
-	def close(self):
-		self._checkClosed()
-		self.__file.close()
 
 
 	def read(self, bytes = 1):
@@ -45,15 +38,28 @@ class FileInputStream(InputStream):
  		return newOffset - originalOffset
 
 
- 	def tell(self):
- 		return self.__stream.tell()
-
-
- 	def seek(self, offset, whence = os.SEEK_CUR):
- 		self.__stream.seek(offset, whence)
-
-
 	def fileno(self):
 		return self.__stream.fileno()
 
 
+	def close(self):
+		self._checkClosed()
+		self.__file.close()
+
+
+
+
+
+	def read(self, bytes):
+		super(SocketInputStream, self).read(bytes)
+		try:
+			return self.__read(bytes)
+		except socket.timeout:
+			raise TimeoutError
+	
+	
+	def __read(self, bytes):
+		if self.ready(self.__timeout):
+			return signalSafeCall(self.__socket.recv, bytes)
+		else:
+			raise TimeoutError

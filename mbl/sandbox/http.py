@@ -11,6 +11,7 @@ from mbl.io import CachedInputStream
 bufferSize = 2 ** 14
 address = ('192.168.4.101', 80)
 client = TcpClient(address)
+client.setConnectTimeout(2)
 socket = client.connect()
 
 reader = socket.inputStream()

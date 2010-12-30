@@ -6,8 +6,8 @@ pujdou lehce odvodit LineInputStream, ...
 """
 
 from types import StringType, UnicodeType
-from mbl.io import InputStream, OutputStream
-from mbl.io import Reader, Writer
+from mbl.io import FilterInputStream, FilterOutputStream
+from mbl.io import FilterReader, FilterWriter
 
 # ------------------------------------------------------------------------------
 # constants
@@ -36,7 +36,9 @@ class LineScanner(object):
 
 	def __checkType(self, text):
 		if type(text) != self.__enabledType:
-			raise AttributeError('Bad type %s' % str(type(text)))
+			textType = str(type(text))
+			enabledType = str(self.__enabledType)
+			raise AttributeError('Type %s is not %s' % (textType, enabledType))
 
 
 	def setMaxLineLength(self, maxLineLength):
@@ -81,12 +83,12 @@ class LineScanner(object):
 # LineInputStream
 # ------------------------------------------------------------------------------
 
-class LineInputStream(InputStream):
+class LineInputStream(FilterInputStream):
 	__END_LINE_LIST = ('\r\n', '\n')
 
 
 	def __init__(self, inputStream):
-		super(LineInputStream, self).__init__()
+		super(LineInputStream, self).__init__(inputStream)
 		self.__inputStream = inputStream
 		self.__lineScanner = LineScanner(inputStream, StringType)
 		self.__lineScanner.setEndLineList(self.__END_LINE_LIST)
@@ -96,29 +98,13 @@ class LineInputStream(InputStream):
 		return self.__lineScanner.readLine()
 
 
-	def read(self, chars):
-		return self.__inputStream.read(chars)
-
-
-	def ready(self, timeout):
-		return self.__inputStream.ready(timeout)
-
-
- 	def skip(self, chars):
- 		return self.__inputStream.skip(chars)
-
-
-	def close(self):
-		return self.__inputStream.close()
-
-
 # ------------------------------------------------------------------------------
 # LineOutputStream
 # ------------------------------------------------------------------------------
 
-class LineOutputStream(OutputStream):
+class LineOutputStream(FilterOutputStream):
 	def __init__(self, outputStream):
-		super(LineOutputStream, self).__init__()
+		super(LineOutputStream, self).__init__(outputStream)
 		self.__outputStream = outputStream
 		self.setEol('\n')
 
@@ -136,33 +122,16 @@ class LineOutputStream(OutputStream):
 		self.write(text)
 
 
-	
-	def flush(self):
-		return self.__outputStream.flush()
-
-
-	def write(self, text):
-		return self.__outputStream.write(text)
-	
-	
-	def writeNonblock(self, data):
-		return __outputStream.writeNonblock(data)
-
-
-	def close(self):
-		return self.__outputStream.close()
-
-
 # ------------------------------------------------------------------------------
 # LineReader
 # ------------------------------------------------------------------------------
 
-class LineReader(Reader):
+class LineReader(FilterReader):
 	__END_LINE_LIST = (u'\r\n', u'\n')
 
 
 	def __init__(self, reader):
-		super(Reader, self).__init__()
+		super(Reader, self).__init__(reader)
 		self.__reader = reader
 		self.__lineScanner = LineScanner(reder, UnicodeType)
 		self.__lineScanner.setEndLineList(self.__END_LINE_LIST)
@@ -171,27 +140,25 @@ class LineReader(Reader):
 	def readLine(self):
 		return self.__lineScanner.readLine()
 
-
-	def read(self, chars):
-		return self.__reader.read(chars)
-
-
-	def ready(self, timeout):
-		return self.__reader.ready(timeout)
-
-
- 	def skip(self, chars):
- 		return self.__reader.skip(chars)
-
-
-	def close(self):
-		return self.__reader.close()
-
-
 # ------------------------------------------------------------------------------
 # LineWriter
 # ------------------------------------------------------------------------------
 
-class LineWriter(Writer):
-	pass
-	
+class LineWriter(FilterWriter):
+	def __init__(self, writer):
+		super(LineWriter, self).__init__(writer)
+		self.__writer = writer
+		self.setEol(u'\n')
+
+
+	def setEol(self, eol):
+		self.__eol = eol
+
+
+	def newLine(self):
+		self.write(self.__eol)
+
+
+	def writeLine(self, *args):
+		text = u''.join(map(str, args)) + self.__eol
+		self.write(text)

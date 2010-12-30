@@ -1,0 +1,20 @@
+Zde bych se asi nechal inspirovat frameworkem Rhino z .NET
+Knizka Tha art of unit testing ho kresli ve velmi priznivych barvach.
+Pro potreby Pythonu, by vsak slo mnohe zjednodusit. Nez tedy vubec neco zacnu
+tvorit, stalo by za to vypracovat ruzne use cases a udelat studii toho, jak
+by jednotliva volani mela vypadat a jak by se vlastne mela cela tato knihovna
+chovat.
+
+class SimpleSelectTest(unittest.TestCase):
+	def test_immediatelyReadReady(self):
+		mocks = MockRepository()
+		stream = None
+		simpleSelect = mocks.StrictMock(SimpleSelect, stream)		
+		with mocks:
+			args = ([stream], [], [], Timeout.NONBLOCK)
+			simpleSelect._select(*args)
+			selectValue = [[self.__stream], [], []]
+			lastCall(selectValue)
+		self.assertTrue(simpleSelect.readReady(Timeout.NONBLOCK))
+		mocks.verify(simpleSelect)
+

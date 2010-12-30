@@ -8,7 +8,7 @@ from mbl.io import Timeout
 DEFAULT_BUFFER_SIZE = 2 ** 15
 
 # ------------------------------------------------------------------------------
-#
+# BufferInputStream
 # ------------------------------------------------------------------------------
 
 class BufferInputStream(InputStream):
@@ -46,7 +46,7 @@ class BufferInputStream(InputStream):
 
 
 # ------------------------------------------------------------------------------
-#
+# BufferOutputStream
 # ------------------------------------------------------------------------------
 
 class BufferOutputStream(OutputStream):
@@ -94,9 +94,14 @@ class CachedInputStream(FilterInputStream):
 	def __init__(self, inputStream, bufferSize = DEFAULT_BUFFER_SIZE):
 		super(CachedInputStream, self).__init__(inputStream)
 		self.__inputStream = inputStream
-		# kontrola bufferSize
-		self.__bufferSize = bufferSize
+		self.__chekBufferSize(bufferSize)
+		self.__bufferSize = int(bufferSize)
 		self.__buffer = ''
+	
+	
+	def __chekBufferSize(self, bufferSize):
+		if int(bufferSize) <= 0:
+			raise AttributeError('Buffer size must be integer positive number: %s' % str(bufferSize))
 	
 	
 	def ready(self, timeout = Timeout.NONBLOCK):
@@ -149,6 +154,18 @@ class CachedInputStream(FilterInputStream):
 class CachedOutputStream(FilterOutputStream):
 	def __init__(self, outputStream, bufferSize = DEFAULT_BUFFER_SIZE):
 		super(CachedOutputStream, self).__init__(outputStream)
+		self.__bufferSize = bufferSize
 		self.__outputStream = outputStream
-
+	
+	
+	def ready(self, timeout = Timeout.NONBLOCK):
+		raise NotImplementedError
+	
+	
+	def write(self, data):
+		raise NotImplementedError
+		
+	
+	def flush(self):
+		raise NotImplementedError
 

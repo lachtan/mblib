@@ -17,11 +17,20 @@ def _stringCheck(data):
 	if type(data) != StringType:
 		raise AttributeError("Data must be string type: %s" % str(type(data)))
 
+
 # ------------------------------------------------------------------------------
-# _Stream
+# 
 # ------------------------------------------------------------------------------
 
-class _Stream(object):
+class ClosedStreamError(IOError):
+	pass
+
+
+# ------------------------------------------------------------------------------
+# Closer
+# ------------------------------------------------------------------------------
+
+class Closer(object):
 	def __init__(self):
 		self.__closed = False
 
@@ -33,15 +42,14 @@ class _Stream(object):
 
  	def _checkClosed(self):
  		if self.__closed:
- 			# Nejaka vhodnejsi vyjimka?
- 			raise IOError('Stream already closed')
+ 			raise ClosedStreamError
 
 
 # ------------------------------------------------------------------------------
 # InputStream
 # ------------------------------------------------------------------------------
 
-class InputStream(_Stream):
+class InputStream(Closer):
 	def __init__(self):
 		super(InputStream, self).__init__()
 
@@ -54,6 +62,7 @@ class InputStream(_Stream):
 	def read(self, bytes):
 		self._checkClosed()
 		_positiveNumberCheck(bytes)
+		return ''
 
 
  	def skip(self, bytes):
@@ -65,7 +74,7 @@ class InputStream(_Stream):
 # OutputStream
 # ------------------------------------------------------------------------------
 
-class OutputStream(_Stream):
+class OutputStream(Closer):
 	def __init__(self):
 		super(OutputStream, self).__init__()
 
@@ -94,7 +103,7 @@ class OutputStream(_Stream):
 # IOStream
 # ------------------------------------------------------------------------------
 
-class IOStream(_Stream):
+class IOStream(Closer):
 	def __init__(self, inputStream, outputStream):
 		super(IOStream, self).__init__()
 		self.__inputStream = inputStream
@@ -109,14 +118,9 @@ class IOStream(_Stream):
 		return self.__outputStream
 
 
-	def isReady(self):
+	def ready(self, timeout = Timeout.NONBLOCK):
 		self._checkClosed()
-		return self.__inputStream.isReady()
-
-
-	def availableBytes(self):
-		self._checkClosed()
-		return self.__inputStream.availableBytes()
+		return self.__inputStream.ready()
 
 
 	def read(self, bytes):
@@ -139,6 +143,11 @@ class IOStream(_Stream):
 		return self.__outputStream.write(data)
 
 
+	def writeNonblock(self, data):
+		self._checkClosed()
+		return self.__outputStream.writeNonblock(data)
+
+
 	def close(self):
 		super(IOStream, self).close()
 		self.__inputStream.close()
@@ -149,20 +158,20 @@ class IOStream(_Stream):
 # Reader
 # ------------------------------------------------------------------------------
 
-class Reader(_Stream):
+class Reader(Closer):
 	def __init__(self):
 		super(Reader, self).__init__()
+
+
+	def ready(self, timeout = Timeout.NONBLOCK):
+		self._checkClosed()
+		return False
 
 
 	def read(self, chars):
 		self._checkClosed()
 		_positiveNumberCheck(chars)
 		return ''
-
-
-	def isReady(self):
-		self._checkClosed()
-		return False
 
 
  	def skip(self, chars):
@@ -175,7 +184,7 @@ class Reader(_Stream):
 # Writer
 # ------------------------------------------------------------------------------
 
-class Writer(_Stream):
+class Writer(Closer):
 	def __init__(self):
 		super(Writer, self).__init__()
 
@@ -195,7 +204,7 @@ class Writer(_Stream):
 # ReaderWriter
 # ------------------------------------------------------------------------------
 
-class ReaderWriter(_Stream):
+class ReaderWriter(Closer):
 	def __init__(self, reader, writer):
 		super(ReaderWriter, self).__init__()
 		self.__reader = reader
@@ -215,9 +224,9 @@ class ReaderWriter(_Stream):
 		return self.__reader.read(chars)
 
 
-	def isReady(self):
+	def ready(self, timeout = Timeout.NONBLOCK):
 		self._checkClosed()
-		return self.__reader.isReady()
+		return self.__reader.ready()
 
 
  	def skip(self, chars):

@@ -87,7 +87,12 @@ class SocketInputStream(InputStream):
 		super(SocketInputStream, self).__init__()
 		self.__socket = socket
 		self.__timeout = timeout
-		self.__select = SimpleSelect(socket, timeout)
+		self.__select = SimpleSelect(socket)
+
+
+	def ready(self, timeout = Timeout.NONBLOCK):
+		super(SocketInputStream, self).ready(timeout)
+		return self.__select.readReady(timeout)
 
 
 	def read(self, bytes):
@@ -103,12 +108,7 @@ class SocketInputStream(InputStream):
 			return signalSafeCall(self.__socket.recv, bytes)
 		else:
 			raise TimeoutError
-	
 
-	def ready(self, timeout = Timeout.NONBLOCK):
-		super(SocketInputStream, self).ready(timeout)
-		return self.__select.readReady()
-	
 	
 # ------------------------------------------------------------------------------
 # SocketOutputStream
@@ -119,12 +119,12 @@ class SocketOutputStream(OutputStream):
 		super(SocketOutputStream, self).__init__()
 		self.__socket = socket
 		self.__timeout = timeout
-		self.__select = SimpleSelect(socket, timeout)
+		self.__select = SimpleSelect(socket)
 
 
 	def ready(self, timeout = Timeout.NONBLOCK):
 		super(SocketOutputStream, self).ready(timeout)
-		return self.__select.writeReady()
+		return self.__select.writeReady(timeout)
 
 
 	def write(self, data):
@@ -170,9 +170,8 @@ class TcpClient(object):
 
 	def setConnectTimeout(self, timeout):
 		self.__connectTimeout = timeout
-
-
-
+	
+	
 # ------------------------------------------------------------------------------
 # TcpServer
 # ------------------------------------------------------------------------------

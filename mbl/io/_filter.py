@@ -1,5 +1,3 @@
-import codecs
-from mbl.io import Reader, Writer
 from mbl.io import Timeout
 
 
@@ -55,5 +53,51 @@ class FilterOutputStream(object):
 
 	def close(self):
 		return self.__outputStream.close()
+
+
+# ------------------------------------------------------------------------------
+# FilterReader
+# ------------------------------------------------------------------------------
+
+class FilterReader(object):
+	def __init__(self, reader):
+		self.__reader = reader
+
+
+	def ready(self, timeout = Timeout.NONBLOCK):
+		return self.__reader.ready(timeout)
+	
+	
+	def read(self, chars):
+		return self.__reader.read(chars)
+
+
+ 	def skip(self, chars):
+ 		return self.__reader.skip(chars)
+ 		
+
+	def close(self):
+		return self.__reader.close()
+
+
+# ------------------------------------------------------------------------------
+# FilterWriter
+# ------------------------------------------------------------------------------
+
+class FilterWriter(object):
+	def __init__(self, writer):
+		self.__writer = writer
+
+
+	def flush(self):
+		return self.__writer.flush()
+
+
+	def write(self, text):
+		return self.__writer.write(text)
+
+
+	def close(self):
+		return self.__writer.close()
 
 
