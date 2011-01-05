@@ -1,12 +1,6 @@
-"""
-TODO
-
-Jak hezky udelat spoecnou tridu pro cteni a zapis, z ktere potom
-pujdou lehce odvodit LineInputStream, ...
-"""
-
 from types import StringType, UnicodeType
 from mbl.io import FilterInputStream, FilterOutputStream
+from mbl.io import DuplexStream
 from mbl.io import FilterReader, FilterWriter
 
 # ------------------------------------------------------------------------------
@@ -101,15 +95,15 @@ class LineInputStream(FilterInputStream):
 
 
 	def setEndLineList(self, endLineList):
-		return self.__lineScanner.setEndLineList(endLineList)
+		self.__lineScanner.setEndLineList(endLineList)
 
-	
+
 	def setMaxLineLength(self, maxLineLength):
-		return self.__lineScanner.setMaxLineLength(maxLineLength)
+		self.__lineScanner.setMaxLineLength(maxLineLength)
 
 
 	def setDeleteEol(self, deleteEol):
-		return self.__lineScanner.setDeleteEol(deleteEol)
+		self.__lineScanner.setDeleteEol(deleteEol)
 
 
 	def readLine(self):
@@ -135,9 +129,62 @@ class LineOutputStream(FilterOutputStream):
 		self.write(self.__eol)
 
 
-	def writeLine(self, *args):
-		text = ''.join(map(str, args)) + self.__eol
-		self.write(text)
+	def writeLine(self, text):
+		_text = text + self.__eol
+		self.write(_text)
+
+
+# ------------------------------------------------------------------------------
+# LineDuplexStream
+# ------------------------------------------------------------------------------
+
+class LineDuplexStream(FilterDuplexStream):
+	def __init__(self, duplexStream):
+		super(LineDuplexStream, self).__init__(duplexStream)
+		self.__lineInputStream = LineInputStream(duplexStream.inputStream())
+		self.__lineOutputStream = LineOutputStream(duplexStream.outputStream())
+
+
+	def inputStream(self):
+		return self.__lineInputStream
+
+
+	def outputStream(self):
+		return self.__lineOutputStream
+
+
+	def setEndLineList(self, endLineList):
+		self.__lineInputStream.setEndLineList(endLineList)
+
+
+	def setMaxLineLength(self, maxLineLength):
+		self.__lineInputStream.setMaxLineLength(maxLineLength)
+
+
+	def setDeleteEol(self, deleteEol):
+		self.__lineInputStream.setDeleteEol(deleteEol)
+
+
+	def readLine(self):
+		return self.__lineInputStream.readLine()
+
+
+	def setEol(self, eol):
+		self.__lineOutputStreamsetEof(eol)
+
+
+	def newLine(self):
+		self.__lineOutputStream.newLine()
+
+
+	def writeLine(self, text):
+		self.__lineOutputStream.writeLine()
+
+
+	def close(self):
+		super(LineDuplexStream, self).close()
+		self.__lineInputStream = None
+		self.__lineOutputStream = None
 
 
 # ------------------------------------------------------------------------------
@@ -156,15 +203,15 @@ class LineReader(FilterReader):
 
 
 	def setEndLineList(self, endLineList):
-		return self.__lineScanner.setEndLineList(endLineList)
+		self.__lineScanner.setEndLineList(endLineList)
 
-	
+
 	def setMaxLineLength(self, maxLineLength):
-		return self.__lineScanner.setMaxLineLength(maxLineLength)
+		self.__lineScanner.setMaxLineLength(maxLineLength)
 
 
 	def setDeleteEol(self, deleteEol):
-		return self.__lineScanner.setDeleteEol(deleteEol)
+		self.__lineScanner.setDeleteEol(deleteEol)
 
 
 	def readLine(self):
@@ -193,3 +240,10 @@ class LineWriter(FilterWriter):
 	def writeLine(self, *args):
 		text = u''.join(map(str, args)) + self.__eol
 		self.write(text)
+
+
+# ------------------------------------------------------------------------------
+# LineReaderWriter
+# ------------------------------------------------------------------------------
+
+# TODO :)
