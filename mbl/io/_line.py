@@ -135,8 +135,16 @@ class LineOutputStream(FilterOutputStream):
 class LineDuplexStream(FilterDuplexStream):
 	def __init__(self, duplexStream):
 		super(LineDuplexStream, self).__init__(duplexStream)
-		self.__lineInputStream(duplexStream.inputStream())
-		self.__lineOutputStream(duplexStream.outputStream())
+		self.__lineInputStream = LineInputStream(duplexStream.inputStream())
+		self.__lineOutputStream = LineOutputStream(duplexStream.outputStream())
+
+
+	def inputStream(self):
+		return self.__lineInputStream
+
+
+	def outputStream(self):
+		return self.__lineOutputStream
 
 
 	def setEndLineList(self, endLineList):
