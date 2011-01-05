@@ -19,7 +19,7 @@ def _stringCheck(data):
 
 
 # ------------------------------------------------------------------------------
-# 
+# ClosedStreamError
 # ------------------------------------------------------------------------------
 
 class ClosedStreamError(IOError):
@@ -97,13 +97,13 @@ class OutputStream(Closer):
 		self._checkClosed()
 		_stringCheck(data)
 		return 0
-	
+
 
 # ------------------------------------------------------------------------------
-# IOStream
+# DuplexStream
 # ------------------------------------------------------------------------------
 
-class IOStream(Closer):
+class DuplexStream(Closer):
 	def __init__(self, inputStream, outputStream):
 		super(IOStream, self).__init__()
 		self.__inputStream = inputStream
@@ -234,7 +234,7 @@ class ReaderWriter(Closer):
  		return self.__reader.skip(chars)
 
 
-	def flush(self):	
+	def flush(self):
 		self._checkClosed()
 		return self.__writer.flush()
 

@@ -1,3 +1,32 @@
+5.1.2011
+Případy použítí proudů pro následný návrh vhodných obalových tříd a továren na
+vytváření běžných proudů.
+
+* Komunikace na socketu v obou směrech se zapnutým kešováním a možností
+  pracovat po řádkách.
+* Načítání bloků binárních dat
+  Většinou načtu x bajtů nebo řádek, kde se dozvím velikost dalšího bloku pro
+  načtení. Takhle stále dokola. Stejně tak zápis.
+* Otevřu soubor a načítám z něj unicode text. Může být zpracováváno po řádkách.
+  Stejně tak zápis.
+* Pripad: (diskutabilni) ctu po radcich (http chunked output) a od urciteho
+  stavu cteni ctu dvojradky (delka+data, delka+data, ..., nulova delka+konec
+  dat) dc asj  
+* Serializace/deserializace objektů do/z streamu.
+
+Pro sjednocení inputStream a outputStream do jedné třídy navrhuji místo
+IOStream použít jiný název. Zatím jsou v návrhu: Channel, DuplexChannel,
+DuplexStream.
+DualStream dostalo 4 hlasy od 4 hlasujících :)
+
+Dále se hledá vhodný název pro třidu která kombinuje LineDuplexStream a
+CachedDuplexStream. Ovšem né něco šíleného splácaného, ale pěkný, krátký a
+výstižný název.
+
+Je lepší název BufferOutputStream nebo StringOutputStream? (Podobně pak i
+InputStream)
+
+
 27.12.2010
 Metodu InputStream.read(bytes) jsem zamerne zmenil tak, aby se vzdy musel
 zadavat pocet bajtu, ktere je treba nacist. Duvod je ten, aby nedochazelo

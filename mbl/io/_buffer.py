@@ -8,12 +8,12 @@ from mbl.io import Timeout
 DEFAULT_BUFFER_SIZE = 2 ** 15
 
 # ------------------------------------------------------------------------------
-# BufferInputStream
+# ByteArrayInputStream
 # ------------------------------------------------------------------------------
 
-class BufferInputStream(InputStream):
+class ByteArrayInputStream(InputStream):
 	def __init__(self, buffer):
-		super(BufferInputStream, self).__init__()
+		super(ByteArrayInputStream, self).__init__()
 		if type(buffer) != StringType:
 			raise AttributeError("Buffer is not str type: %s" % str(type(buffer)))
 		self.__buffer = buffer
@@ -33,8 +33,8 @@ class BufferInputStream(InputStream):
 		return data
 
 
- 	def skip(self, bytes): 		 		
- 		super(BufferInputStream, self).skip(bytes) 
+ 	def skip(self, bytes):
+ 		super(BufferInputStream, self).skip(bytes)
  		newActualPosition = min(self.__actualPosition + bytes, self.__length)
  		skipBytes = newActualPosition - self.__actualPosition
  		self.__actualPosition = newActualPosition
@@ -46,12 +46,12 @@ class BufferInputStream(InputStream):
 
 
 # ------------------------------------------------------------------------------
-# BufferOutputStream
+# ByteArrayOutputStream
 # ------------------------------------------------------------------------------
 
-class BufferOutputStream(OutputStream):
+class ByteArrayOutputStream(OutputStream):
 	def __init__(self, maxBufferLength = 0):
-		super(BufferOutputStream, self).__init__()
+		super(ByteArrayOutputStream, self).__init__()
 		self.__maxBufferLength = maxBufferLength
 		self.__buffer = StringIO()
 
@@ -59,13 +59,13 @@ class BufferOutputStream(OutputStream):
 	def ready(self, timeout = Timeout.NONBLOCK):
 		super(BufferOutputStream, self).ready(timeout)
 		return True
-	
+
 
 	def write(self, data):
 		super(BufferOutputStream, self).write(data)
 		self.__buffer.write(data)
-	
-	
+
+
 	def writeNonblock(self, data):
 		self.write(data)
 		return len(data)
@@ -97,29 +97,29 @@ class CachedInputStream(FilterInputStream):
 		self.__chekBufferSize(bufferSize)
 		self.__bufferSize = int(bufferSize)
 		self.__buffer = ''
-	
-	
+
+
 	def __chekBufferSize(self, bufferSize):
 		if int(bufferSize) <= 0:
 			raise AttributeError('Buffer size must be integer positive number: %s' % str(bufferSize))
-	
-	
+
+
 	def ready(self, timeout = Timeout.NONBLOCK):
 		super(BufferedInputStream, self).ready(timeout)
 		return (not self.__isEmpty()) or self.__inputStream.ready(timeout)
-	
-	
+
+
 	def __isEmpty(self):
 		return self.__buffer == ''
-		
-	
+
+
 	def read(self, bytes):
 		super(CachedInputStream, self).read(bytes)
 		if bytes > self.__bufferSize or bytes > len(self.__buffer):
 			self.__fillBuffer()
 		return self.__read(bytes)
-	
-	
+
+
 	def __fillBuffer(self):
 		if self.__isEmpty():
 			self.__buffer = self.__inputStream.read(self.__bufferSize)
@@ -133,20 +133,20 @@ class CachedInputStream(FilterInputStream):
 			if data == '':
 				return
 			self.__buffer += data
-	
-	
+
+
 	def __read(self, bytes):
 		if self.__isEmpty():
 			return ''
 		data = self.__buffer[:bytes]
 		self.__buffer = self.__buffer[len(data):]
 		return data
-	
-	
+
+
 	def _buffer(self):
 		return self.__buffer
-	
-	
+
+
 # ------------------------------------------------------------------------------
 # CachedOutputStream
 # ------------------------------------------------------------------------------
@@ -156,16 +156,16 @@ class CachedOutputStream(FilterOutputStream):
 		super(CachedOutputStream, self).__init__(outputStream)
 		self.__bufferSize = bufferSize
 		self.__outputStream = outputStream
-	
-	
+
+
 	def ready(self, timeout = Timeout.NONBLOCK):
 		raise NotImplementedError
-	
-	
+
+
 	def write(self, data):
 		raise NotImplementedError
-		
-	
+
+
 	def flush(self):
 		raise NotImplementedError
 
