@@ -30,15 +30,18 @@ class LineScanner(object):
 
 	def setEndLineList(self, endLineList):
 		for endLine in endLineList:
-			self.__checkType(endLine)
+			self.__check(endLine)
 		self.__endLineList = tuple(endLineList)
+		self.__endChars = set([endLine[-1] for endLine in endLineList])
 
 
-	def __checkType(self, text):
+	def __check(self, text):
 		if type(text) != self.__enabledType:
 			textType = str(type(text))
 			enabledType = str(self.__enabledType)
 			raise AttributeError('Type %s is not %s' % (textType, enabledType))
+		if text == '':
+			raise AttributeError('Length of line end must be positive')
 
 
 	def setMaxLineLength(self, maxLineLength):
@@ -54,20 +57,23 @@ class LineScanner(object):
 
 	def readLine(self):
 		self.__line = ''
+		self.__char = None
 		while True:
 			if self.__isEndedLine():
 				self.__correctLine()
 				return self.__line
-			char = self.__input.read(1)
-			if char == '':
+			self.__char = self.__input.read(1)
+			if self.__char == '':
 				return self.__line
-			self.__line += char
+			self.__line += self.__char
 
 
 	def __isEndedLine(self):
 		if self.__maxLineLength > 0 and len(self.__line) >= self.__maxLineLength:
 			self.__end = ''
 			return True
+		if self.__char not in self.__endChars:
+			return False
 		for self.__end in self.__endLineList:
 			if self.__line.endswith(self.__end):
 				return True
