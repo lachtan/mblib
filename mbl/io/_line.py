@@ -1,3 +1,7 @@
+try:
+	from cStringIO import StringIO
+except ImportError:
+	from StringIO import StringIO
 from types import StringType, UnicodeType
 from mbl.io import FilterInputStream, FilterOutputStream
 from mbl.io import FilterDuplexStream
@@ -20,6 +24,7 @@ class LineScanner(object):
 		self.__enabledType = enabledType
 		self.setMaxLineLength(UNLIMITED_LINE_LENGTH)
 		self.setDeleteEol(False)
+		self.__line = StringIO()
 
 
 	def setEndLineList(self, endLineList):
@@ -49,19 +54,6 @@ class LineScanner(object):
 		self.__deleteEol = bool(deleteEol)
 
 
-	def readLine(self):
-		self.__line = ''
-		self.__char = None
-		while True:
-			if self.__isEndedLine():
-				self.__correctLine()
-				return self.__line
-			self.__char = self.__input.read(1)
-			if self.__char == '':
-				return self.__line
-			self.__line += self.__char
-
-
 	def __iter__(self):
 		while True:
 			line = self.readLine()
@@ -71,21 +63,43 @@ class LineScanner(object):
 				yield line
 
 
+	def readLine(self):
+		self.__line.truncate(0)
+		self.__char = ''
+		while True:
+			if self.__isEndedLine():
+				return self.__correctLine()
+			self.__char = self.__input.read(1)
+			if self.__char == '':
+				return self.__line.getvalue()
+			self.__line.write(self.__char)
+
+
 	def __isEndedLine(self):
-		if self.__maxLineLength > 0 and len(self.__line) >= self.__maxLineLength:
+		if self.__maxLineLength > 0 and self.__lineLength() >= self.__maxLineLength:
 			self.__end = ''
 			return True
 		if self.__char not in self.__endChars:
 			return False
+		line = self.__line.getvalue()
 		for self.__end in self.__endLineList:
-			if self.__line.endswith(self.__end):
+			if line.endswith(self.__end):
 				return True
 		return False
 
 
 	def __correctLine(self):
+		line = self.__line.getvalue()
+		if line == '' or self.__end == '':
+			return line
 		if self.__deleteEol and self.__end:
-			self.__line = self.__line[:-len(self.__end)]
+			return line[:-len(self.__end)]
+		else:
+			return line
+
+
+	def __lineLength(self):
+		return len(self.__line.getvalue())
 
 
 # ------------------------------------------------------------------------------
@@ -117,8 +131,8 @@ class LineInputStream(FilterInputStream):
 
 	def readLine(self):
 		return self.__lineScanner.readLine()
-	
-	
+
+
 	def __iter__(self):
 		for line in self.__lineScanner:
 			yield line
