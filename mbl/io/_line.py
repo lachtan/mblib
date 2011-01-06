@@ -1,6 +1,6 @@
 from types import StringType, UnicodeType
 from mbl.io import FilterInputStream, FilterOutputStream
-from mbl.io import DuplexStream
+from mbl.io import FilterDuplexStream
 from mbl.io import FilterReader, FilterWriter
 
 # ------------------------------------------------------------------------------
@@ -62,6 +62,15 @@ class LineScanner(object):
 			self.__line += self.__char
 
 
+	def __iter__(self):
+		while True:
+			line = self.readLine()
+			if line == '':
+				return
+			else:
+				yield line
+
+
 	def __isEndedLine(self):
 		if self.__maxLineLength > 0 and len(self.__line) >= self.__maxLineLength:
 			self.__end = ''
@@ -108,6 +117,11 @@ class LineInputStream(FilterInputStream):
 
 	def readLine(self):
 		return self.__lineScanner.readLine()
+	
+	
+	def __iter__(self):
+		for line in self.__lineScanner:
+			yield line
 
 
 # ------------------------------------------------------------------------------
@@ -169,6 +183,11 @@ class LineDuplexStream(FilterDuplexStream):
 		return self.__lineInputStream.readLine()
 
 
+	def __iter__(self):
+		for line in self.__lineInputStream:
+			yield line
+
+
 	def setEol(self, eol):
 		self.__lineOutputStreamsetEof(eol)
 
@@ -216,6 +235,11 @@ class LineReader(FilterReader):
 
 	def readLine(self):
 		return self.__lineScanner.readLine()
+
+
+	def __iter__(self):
+		for line in self.__lineScanner:
+			yield line
 
 
 # ------------------------------------------------------------------------------
