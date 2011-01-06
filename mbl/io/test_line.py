@@ -13,60 +13,56 @@ class FakeInputStream(object):
 	
 	
 class TestLineScanner(unittest.TestCase):
+	def setUp(self):
+		inputStream = FakeInputStream('one line\ntwo line\r\nth\reline')
+		self.__lineInputStream = LineInputStream(inputStream)
+	
+	
+	def tearDown(self):
+		self.__lineInputStream = None
+
+
 	def test_basicFuncionality(self):
-		lineInputStream = self.__prepareLineInputStream()
 		expectedLines = ['one line\n', 'two line\r\n', 'th\reline']
-		self.__checkLines(expectedLines, lineInputStream)
+		self.__checkLines(expectedLines)
 	
 	
 	def test_badTypeEndLineList(self):
-		lineInputStream = self.__prepareLineInputStream()
-		self.assertRaises(AttributeError, lineInputStream.setEndLineList, [u'\r'])
+		self.assertRaises(AttributeError, self.__lineInputStream.setEndLineList, [u'\r'])
 	
 	
 	def test_badLengthEndLineList(self):
-		lineInputStream = self.__prepareLineInputStream()
-		self.assertRaises(AttributeError, lineInputStream.setEndLineList, [''])
+		self.assertRaises(AttributeError, self.__lineInputStream.setEndLineList, [''])
 
 
 	def test_endLineList(self):
-		lineInputStream = self.__prepareLineInputStream()
-		lineInputStream.setEndLineList(['\r'])
+		self.__lineInputStream.setEndLineList(['\r'])
 		expectedLines = ['one line\ntwo line\r', '\nth\r', 'eline']
-		self.__checkLines(expectedLines, lineInputStream)
+		self.__checkLines(expectedLines)
 	
 	
 	def test_deleteEol(self):
-		lineInputStream = self.__prepareLineInputStream()
-		lineInputStream.setDeleteEol(True)
+		self.__lineInputStream.setDeleteEol(True)
 		expectedLines = ['one line', 'two line', 'th\reline']
-		self.__checkLines(expectedLines, lineInputStream)
+		self.__checkLines(expectedLines)
 	
 	
 	def test_maxLineLength(self):
-		lineInputStream = self.__prepareLineInputStream()
-		lineInputStream.setMaxLineLength(5)
+		self.__lineInputStream.setMaxLineLength(5)
 		expectedLines = ['one l', 'ine\n', 'two l', 'ine\r\n', 'th\rel', 'ine']
-		self.__checkLines(expectedLines, lineInputStream)
+		self.__checkLines(expectedLines)
 	
 	
 	def test_lineGenerator(self):
-		lineInputStream = self.__prepareLineInputStream()
-		lines = [line for line in lineInputStream]
+		lines = [line for line in self.__lineInputStream]
 		expectedLines = ['one line\n', 'two line\r\n', 'th\reline']
 		self.assertEqual(expectedLines, lines)
 		
 	
-	def __prepareLineInputStream(self):
-		inputStream = FakeInputStream('one line\ntwo line\r\nth\reline')
-		lineInputStream = LineInputStream(inputStream)
-		return lineInputStream
-	
-	
-	def __checkLines(self, expectedLines, lineInputStream):
+	def __checkLines(self, expectedLines):
 		lines = []
 		while True:
-			line = lineInputStream.readLine()
+			line = self.__lineInputStream.readLine()
 			if line == '':
 				break
 			lines.append(line)
