@@ -1,0 +1,9 @@
+Roadmap
+
+- testy pro mbl.io.*
+- testy pro socket
+- souborové a adrésářové operace
+  File
+  ImmutableFile
+  iterování adresářovou strukturou s využitím filtrů
+
