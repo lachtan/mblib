@@ -10,5 +10,5 @@ def itemCall(item):
 
 class OperatorTest(unittest.TestCase):
 	def test_allcall(self):
-		
-	
+		pass
+

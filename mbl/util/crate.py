@@ -1,10 +1,4 @@
-"""
-mbl/util/create.py
-original from Petr Cervenka
-
-Crate Design Pattern
-"""
-
+from __future__ import absolute_import
 import re
 from operator import itemgetter
 
@@ -26,16 +20,16 @@ class Crate(object):
 		super(Crate, self).__init__()
 		self.__checkMissingKeys(params)
 		self.__setValues(params)
-	
-	
+
+
 	def __checkMissingKeys(self, params):
 		requiredKeys = set(self.attributes().keys())
 		realKeys = set(params.keys())
-		missKeys = requiredKeys - realKeys		
+		missKeys = requiredKeys - realKeys
 		if missKeys:
 			raise AttributeError('Missing keys: %s' % list(missKeys))
 
-	
+
 	def __keyChecker(self, key):
 		if not re.match(r'^[_a-zA-Z][_a-zA-Z0-9]*$', key):
 			raise AttributeError('Bad key name %s' % key)
@@ -47,8 +41,8 @@ class Crate(object):
 			value = params[key]
 			self.__checkType(requiredType, value)
 			self.__values[key] = value
-	
-	
+
+
 	def __checkType(self, requiredType, value):
 		if (requiredType is not None) and (not isinstance(value, requiredType)):
 			raise TypeError("Value %s isn't %s" % (repr(value), str(requiredType)))
@@ -69,16 +63,16 @@ class Crate(object):
 	def __iter__(self):
 		for key, value in self.__values.items():
 			yield key, value
-		
-	
+
+
 	def __contains__(self, key):
 		return key in self.keys()
-	
-	
+
+
 	def __hash__(self):
 		return hash(tuple(sorted(self.__values.items())))
-	
-	
+
+
 	def __eq__(self, other):
 		return dict(self) == dict(other)
 
@@ -91,19 +85,19 @@ class Crate(object):
 	@classmethod
 	def keys(cls):
 		return tuple(cls.attributes().keys())
-	
-	
+
+
 	@staticmethod
 	def createClass(name, attributes):
 		_attributes = dict(attributes)
-		
+
 		class _Crate(Crate):
 			__metaclass__ = CrateMeta
-			
+
 			@classmethod
 			def attributes(cls):
 				return _attributes
-		
+
 		_Crate.__name__ = name
 		return _Crate
 
