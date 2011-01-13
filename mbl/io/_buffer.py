@@ -27,14 +27,14 @@ class ByteArrayInputStream(InputStream):
 
 
 	def read(self, bytes):
-		super(BufferInputStream, self).read(bytes)
+		super(ByteArrayInputStream, self).read(bytes)
 		data = self.__buffer[self.__actualPosition:self.__actualPosition + bytes]
 		self.__actualPosition = min(self.__actualPosition + bytes, self.__length)
 		return data
 
 
  	def skip(self, bytes):
- 		super(BufferInputStream, self).skip(bytes)
+ 		super(ByteArrayInputStream, self).skip(bytes)
  		newActualPosition = min(self.__actualPosition + bytes, self.__length)
  		skipBytes = newActualPosition - self.__actualPosition
  		self.__actualPosition = newActualPosition
@@ -56,23 +56,13 @@ class ByteArrayOutputStream(OutputStream):
 		self.__buffer = StringIO()
 
 
-	def ready(self, timeout = Timeout.NONBLOCK):
-		super(BufferOutputStream, self).ready(timeout)
-		return True
-
-
 	def write(self, data):
-		super(BufferOutputStream, self).write(data)
+		super(ByteArrayOutputStream, self).write(data)
 		self.__buffer.write(data)
 
 
-	def writeNonblock(self, data):
-		self.write(data)
-		return len(data)
-
-
 	def close(self):
-		super(BufferOutputStream, self).close()
+		super(ByteArrayOutputStream, self).close()
 		self.__buffer.close()
 
 

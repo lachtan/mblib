@@ -35,20 +35,12 @@ class FilterOutputStream(object):
 		self.__outputStream = outputStream
 
 
-	def ready(self, timeout = Timeout.NONBLOCK):
-		return self.__outputStream.ready(timeout)
-
-
 	def flush(self):
 		return self.__outputStream.flush()
 
 
 	def write(self, data):
 		return self.__outputStream.write(data)
-
-
-	def writeNonblock(self, data):
-		return self.__outputStream.writeNonblock(data)
 
 
 	def close(self):
@@ -90,10 +82,6 @@ class FilterDuplexStream(object):
 
 	def write(self, data):
 		return self.__duplexStream.write(data)
-
-
-	def writeNonblock(self, data):
-		return self.__duplexStream.writeNonblock(data)
 
 
 	def close(self):
@@ -145,4 +133,36 @@ class FilterWriter(object):
 	def close(self):
 		return self.__writer.close()
 
+
+# ------------------------------------------------------------------------------
+# FilterReaderWriter
+# ------------------------------------------------------------------------------
+
+class FilterReaderWriter(object):
+	def __init__(self, readerWriter):
+		self.__readerWriter = readerWriter
+
+
+	def ready(self, timeout = Timeout.NONBLOCK):
+		return self.__readerWriter.ready(timeout)
+
+
+	def read(self, chars):
+		return self.__readerWriter.read(chars)
+
+
+ 	def skip(self, chars):
+ 		return self.__readerWriter.skip(chars)
+
+
+	def flush(self):
+		return self.__readerWriter.flush()
+
+
+	def write(self, text):
+		return self.__readerWriter.write(text)
+
+
+	def close(self):
+		return self.__readerWriter.close()
 

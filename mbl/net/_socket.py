@@ -2,7 +2,7 @@ from __future__ import absolute_import
 import socket
 import select
 import errno
-from mbl.io import InputStream, OutputStream, IOStream
+from mbl.io import InputStream, OutputStream, DuplexStream
 from mbl.io import Timeout, TimeoutError
 from mbl.sys.select import SimpleSelect
 
@@ -36,6 +36,10 @@ class Socket(object):
 		self.__outputStream = SocketOutputStream(self.__socket, Timeout.BLOCK)
 
 
+	def socket(self):
+		return self.__socket
+
+
 	def address(self):
 		return self.__address
 
@@ -48,8 +52,23 @@ class Socket(object):
 		return self.__outputStream
 
 
-	def ioStream(self):
-		return IOStream(self.__inputStream, self.__outputStream)
+	def duplexStream(self):
+		return DuplexStream(self.__inputStream, self.__outputStream)
+
+
+	def fileno(self):
+		self.self.__socket.fileno()
+
+
+	def getsockopt(self, level, optname, buflen = None):
+		if buflen is None:
+			return self.self.__socket.getsockopt(level, optname)
+		else:
+			return self.self.__socket.getsockopt(level, optname, buflen)
+
+
+	def setsockopt(self, level, optname, value):
+		return self.__socket.setsockopt(level, optname, value)
 
 
 	def shutdown(self):
@@ -57,21 +76,6 @@ class Socket(object):
 		self.close()
 
 
-	def fileno(self):
-		self.self.__socket.fileno()
-	
-	
-	def getsockopt(self, level, optname, buflen = None):
-		if buflen is None:
-			return self.self.__socket.getsockopt(level, optname)
-		else:
-			return self.self.__socket.getsockopt(level, optname, buflen)
-		
-	
-	def setsockopt(self, level, optname, value):
-		return self.__socket.setsockopt(level, optname, value)
-	
-	
 	def close(self):
 		self.__inputStream.close()
 		self.__outputStream.close()
@@ -101,15 +105,15 @@ class SocketInputStream(InputStream):
 			return self.__read(bytes)
 		except socket.timeout:
 			raise TimeoutError
-	
-	
+
+
 	def __read(self, bytes):
 		if self.ready(self.__timeout):
 			return signalSafeCall(self.__socket.recv, bytes)
 		else:
 			raise TimeoutError
 
-	
+
 # ------------------------------------------------------------------------------
 # SocketOutputStream
 # ------------------------------------------------------------------------------
@@ -122,9 +126,10 @@ class SocketOutputStream(OutputStream):
 		self.__select = SimpleSelect(socket)
 
 
-	def ready(self, timeout = Timeout.NONBLOCK):
-		super(SocketOutputStream, self).ready(timeout)
-		return self.__select.writeReady(timeout)
+	def flush(self):
+		super(SocketOutputStream, self).flush()
+		#fileObject = os.fdopen(self.__socket.fileno())
+		#fileObject.flush()
 
 
 	def write(self, data):
@@ -133,19 +138,14 @@ class SocketOutputStream(OutputStream):
 			self.__write(data)
 		except socket.timeout:
 			raise TimeoutError
-	
-	
+
+
 	def __write(self, data):
-		if self.ready(self.__timeout):
+		if self.__select.writeReady(self.__timeout):
 			return signalSafeCall(self.__socket.sendall, data)
 		else:
 			raise TimeoutError
-	
-	
-	def writeNonblock(self, data):
-		super(SocketOutputStream, self).writeNonblock(data)
-		return signalSafeCall(self.__socket.send, data)
-		
+
 
 # ------------------------------------------------------------------------------
 # TcpClient
@@ -170,8 +170,8 @@ class TcpClient(object):
 
 	def setConnectTimeout(self, timeout):
 		self.__connectTimeout = timeout
-	
-	
+
+
 # ------------------------------------------------------------------------------
 # TcpServer
 # ------------------------------------------------------------------------------
@@ -182,18 +182,25 @@ class TcpServer(object):
 		self.__serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self.__serverSocket.bind()
-		self.listen(1)		
+		self.listen(1)
 		# timeouty!
 
 
 	def listen(self, value):
 		self.__serverSocket.listen(value)
-	
-	
+
+
+	def getsockopt(self, level, optname, buflen = None):
+		if buflen is None:
+			return self.__serverSocket.getsockopt(level, optname)
+		else:
+			return self.__serverSocket.getsockopt(level, optname, buflen)
+
+
 	def setsockopt(self, level, optname, value):
 		return self.__serverSocket.setsockopt(level, optname, value)
 
-	
+
 	def accept(self):
 		clientSocket, clientAddress = self.__socket.accept()
 		return Socket(clientSocket, clientAddress)

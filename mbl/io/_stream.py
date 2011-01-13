@@ -79,11 +79,6 @@ class OutputStream(Closer):
 		super(OutputStream, self).__init__()
 
 
-	def ready(self, timeout = Timeout.NONBLOCK):
-		self._checkClosed()
-		return False
-
-
 	def flush(self):
 		self._checkClosed()
 
@@ -91,12 +86,6 @@ class OutputStream(Closer):
 	def write(self, data):
 		self._checkClosed()
 		_stringCheck(data)
-
-
-	def writeNonblock(self, data):
-		self._checkClosed()
-		_stringCheck(data)
-		return 0
 
 
 # ------------------------------------------------------------------------------
@@ -141,11 +130,6 @@ class DuplexStream(Closer):
 	def write(self, data):
 		self._checkClosed()
 		return self.__outputStream.write(data)
-
-
-	def writeNonblock(self, data):
-		self._checkClosed()
-		return self.__outputStream.writeNonblock(data)
 
 
 	def close(self):
@@ -219,14 +203,14 @@ class ReaderWriter(Closer):
 		return self.__writer
 
 
-	def read(self, chars):
-		self._checkClosed()
-		return self.__reader.read(chars)
-
-
 	def ready(self, timeout = Timeout.NONBLOCK):
 		self._checkClosed()
 		return self.__reader.ready()
+
+
+	def read(self, chars):
+		self._checkClosed()
+		return self.__reader.read(chars)
 
 
  	def skip(self, chars):

@@ -1,3 +1,15 @@
+12.1.2011
+Po duslednych uvahach jsem se rozhodl zmenit interface ke tride OutputStream.
+Vyjmu metody ready() a writeNonblock(), nebot zatim neni zcela jasne, kde by
+se tato funkcnost vyuzila. Pozitivni dopad je i na tridu DuplexStream, ktera
+nyni pude bez problemu pouzit namisto InputStream i OutputStream. Jsem toho
+nazoru, ze API je snadnejsi v budoucnu rozsirit nez z nej naopak metody 
+ubirat, zvlast pokud na nich sou zavisle jine tridy. Takze zadni vratka
+si v pripade potreby nechavam otevrena :) A hlavne YAGNI!
+Pozn: Jediny pripad pouziti je v sekvencnim zpracovani kdy se nechceme
+bloknout pri zapisu.
+
+
 5.1.2011
 Případy použítí proudů pro následný návrh vhodných obalových tříd a továren na
 vytváření běžných proudů.
