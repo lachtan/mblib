@@ -1,3 +1,47 @@
+14.1.2011
+FS operace
+class File - zjistuje informace o konkretni ceste
+class ImmutableFile - zjisti informace pouze pri vytvoreni
+Prochazeni adresarovou strukturou
+- moznost rekurze
+- filtrovani ktere polozky se pouziji
+- moznost zkraceneho vyhodnocovani (pokud adresar nevyhovi filtru, uz se v nem
+  ani dale nehleda)
+- uplne prochazeni stromem
+- omezeni urovne zanoreni
+- casto pouzivane filtry
+- ignorovani chyb behem prochazeni stromu nebo volani error handleru, ktery
+  posoudi, zda lze chybu ignorovat ci nikoliv
+
+
+13.1.2011
+- Pojmenovani pro strict read(bytes), nacte plny pocet bajtu ze vstupu a nejenom
+  cast jako normal read()
+- Tovarni metody - umisteni a pojmenovani
+  use case:
+
+    input -> cache -> strict -> line
+    output -> line
+    
+    input  cache -> strict -> decode -> line
+    output -> encode -> line
+
+  * dalsi modely?
+
+- Pojmenovani pro tridy v modulu _buffer.py
+- Jak a co testovat v mbl.io.*
+- Jak testovat socket
+- vytahnout testy parametru do jineho modulu
+  _positiveNumberCheck(number)
+  _stringCheck(data)
+
+Navrhy na jmena trid
+TcpLineSocket
+DuplexLine
+LineDuplex
+LineWrapper
+
+
 12.1.2011
 Po duslednych uvahach jsem se rozhodl zmenit interface ke tride OutputStream.
 Vyjmu metody ready() a writeNonblock(), nebot zatim neni zcela jasne, kde by

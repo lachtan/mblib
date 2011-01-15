@@ -31,3 +31,7 @@ from mbl.io._convert import ByteToUnicode
 from mbl.io._convert import UnicodeToByte
 
 from mbl.io._file import FileInputStream
+
+from mbl.io._fs import File
+from mbl.io._fs import ImmutableFile
+from mbl.io._fs import TreeScanner
