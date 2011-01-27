@@ -1,0 +1,25 @@
+PacketSender a PacketReceiver vubec nemusi sedet nad socketem a dokonce ne
+ani nad streamem. Tyto tridy mou byt klidne obal na 0MQ.
+
+je nutne aby TransactionTable (strasny jmeno chci jiny! TransactionManager
+SenderPool, SenderManager, ...) bezel ve vlakne?
+vzhledem k tomu, ze pres nej jdou veskere operace get i put
+mohlo by se prave pri techto provadet cisteni
+uz z duvodu ze se vzdy smaze jen jeden?? (fakt a co casove operace)
+nicmene mozna vlakno opravdu neni treba
+jen uvaha :)
+udrzoval bych open a done serazene opacne a odmazaval od konce ty ktere jsou pres
+je razeni problem kdyz hodnotu znam jiz pri vlozeni? now() + timeout
+
+Napojeni klienta je easy, v jedne metode jen 
+sendRequest(data, timeout)
+getResponse(self, timeout)
+
+response je bud None nebo TimeoutError
+
+nevim ale jak udelat server stranu
+jak tam vnutit RpcServer jak vlakna jak thread pool
+jak RpcContext
+
+
+

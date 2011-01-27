@@ -1,114 +1,124 @@
-from threading import Lock
+import re
+import cjson as json
+from threading import RLock
+from datetime import datetime
+from random import randint
+from mbl.io import Timeout
 
-INFINITE_TIMEOUT = None
-BLOCK = None
 
 # ------------------------------------------------------------------------------
-# TidGenerator
+# Packet
 # ------------------------------------------------------------------------------
 
-class TidGenerator(object):
-	__digits = 6
+class Packet(object):
+	REQUEST = 'request'
+	SIGNAL = 'signal'
+	RESPONSE = 'response'
+	__TYPES = (
+		SIGNAL,
+		REQUEST,
+		RESPONSE
+	)
+	SIGNAL_TID = '~~signal~~'
 
 
-	def __init__(self):
-		self.__lock = Lock()
-		self.__counter = 0
-
-
-	def __inc(self):
-		if self.__counter == 10 ** self.__digits:
-			self.__counter = 0
+	def __init__(self, type, tid, data):
+		self.__checkType(type)
+		self.__checkData(data)
+		if tid is None:
+			self.__tid = Packet.SIGNAL
 		else:
-			self.__counter += 1
+			self.__tid = tid
+		self.__type = type
+		self.__data = data
 
 
-	def get(self):
-		self.__lock.acquire()
-		tid = '%s~%0*d~%d' % (self._now(), self.__digits, self.__counter, self._random())		
-		self.__inc()
-		self.__lock.release()
-		return tid
-	
-	
-	def _now(self):
-		return datetime.now().isoformat().replace('T', '~')
-	
-	
-	def _random(self):
-		return randint(100000, 999999)
+	def __checkType(self, type):
+		if type not in self.__TYPES:
+			raise AttributeError('Packet type %s is unknown' % type)
+
+
+	def __checkData(self, data):
+		if type(data) != StringType:
+			raise AttributeError('Data must be string: %s' % str(type(data)))
+
+
+	def __nonzero__(self):
+		return True
+
+
+	def tid(self):
+		return self.__tid
+
+
+	def type(self):
+		return self.__type
+
+
+	def data(self):
+		return self.__data
+
+
+	def __eq__(self, other):
+		return self.__tid == other.tid()
+
+
+	def __hash__(self):
+		return hash(self.__tid)
 
 
 # ------------------------------------------------------------------------------
 # PacketReceiver
 # ------------------------------------------------------------------------------
 
-class PacketReceiver(PacketQueue):
-	def __init__(self, inputStream, queueSize = 0):
-		PacketQueue.__init__(self, queueSize)
-		self.__inputStream = inputStream
-	
-	
-	def iteration(self):
-		packet = packetParser.parse(self.__inputStream)
-		self.put(packet)
-		# musi to nekam cpat
-	
+class PacketReceiver(object):
+	def __init__(self, inputStream):
+		self.__inputStream = LineBlocking(inputStream)
+
+
+	def get(self):
+		# asi by byl lepsi oddeleny parser ne?
+		infoLine = inputStream.readLine().strip()
+		match = re.match('^lemi\s+(%d)\s+(%d)$')
+		if not match:
+			raise
+		totalSize = int(match.group(1))
+		headerSize = int(match.group(2))
+		# kontrola totalSize >= headerSize
+		dataSize = totalSize - headerSize
+		# cist to metodou a kontrolovat nactene velikosti
+		header = inputStream.read(headerSize)
+		data = inputStream.read(dataSize)
+		return packet
+
 
 # ------------------------------------------------------------------------------
 # PacketSender
 # ------------------------------------------------------------------------------
 
-class PacketSender(PacketQueue):
-	def __init__(self, outputStream, queueSize = 0):
-		PacketQueue.__init__(self, queueSize)
-	
-	
-	def iteration(self):
-		packet = self.get()
-		if packet is not None:
-			packetFactory.export(packet)
-
-
-# ------------------------------------------------------------------------------
-# PacketQueue
-# ------------------------------------------------------------------------------
-
-class PacketQueue(object):
-	def __init__(self, queueSize = 0):
-		self.__queue = FreezeQueue(queueSize)
+class PacketSender(Thread):
+	def __init__(self, outputStream, queueSize):
+		Thread.__init__()
+		self.setDaemon()
+		self.__outputStream = outputStream
+		self.__queue = Queue(queueSize)
 
 
 	def put(self, packet):
-		try:
-			return self.__queue.put(packet)
-		except ValueError, exc:
-			pass
+		self.__queue.put(packet)
 
 
-	def get(self):
-		try:
-			return self.__queue.get()
-		except ValueError, exc:
-			pass
+	def run(self):
+		while True:
+			self.iteration()
 
 
-# ------------------------------------------------------------------------------
-# PacketFactory
-# ------------------------------------------------------------------------------
+	def iteration(self):
+		packet = self.__queue.get()
+		self.__export(packet)
 
-class PacketFactory(object):
-	def createRequest(self, data):
-		idTransaction = self.__idTransaction()
-		return Packet(idTransaction, 'request', data)
-	
-	
-	def parse(self, inputStream):
-		packetParser = PacketParser()
-		return packetParser.parse(inputStream)
-		
-	
-	def export(self, outputStream, packet):
+
+	def __export(self, packet):
 		header = {
 			'tid': packet.tid(),
 			'type': packet.type()
@@ -124,215 +134,231 @@ class PacketFactory(object):
 
 
 # ------------------------------------------------------------------------------
-# PacketParser
-# ------------------------------------------------------------------------------
-
-class PacketParser(object):
-	def parse(self, inputStream):
-		infoLine = inputStream.readLine().trim()
-		match = re.match('^lemi\s+(%d)\s+(%d)$')
-		if not match:
-			raise
-		totalSize = int(match.group(1))
-		headerSize = int(match.group(2))
-		# kontrola totalSize >= headerSize
-		dataSize = totalSize - headerSize
-		# cist to metodou a kontrolovat nactene velikosti
-		header = inputStream.read(headerSize)
-		data = inputStream.read(dataSize)
-		return packet
-	
-
-# ------------------------------------------------------------------------------
-# Packet
-# ------------------------------------------------------------------------------
-
-class Packet(object):
-	REQUEST = 'request'
-	RESPONSE = 'response'
-	CANCEL = 'cancel'
-	__TYPES = (
-		REQUEST,
-		RESPONSE,
-		CANCEL
-	)
-	
-	
-	def __init__(self, tid, type, data):
-		self.__tid = tid
-		self.__checkType(type)
-		self.__type = type
-		self.__data = data
-
-
-	def __checkType(self, type):
-		if type not in self.__TYPES:
-			raise AttributeError('Packet type %s is unknown' % type)
-	
-	
-	def __nonzero__(self):
-		return True
-	
-	
-	def tid(self):
-		return tid	
-	
-	
-	def type(self):
-		return self.__type
-
-
-	def data(self):
-		return data
-
-
-# ------------------------------------------------------------------------------
 # Transaction
 # ------------------------------------------------------------------------------
 
 class Transaction(object):
 	OPEN = 'open'
 	DONE = 'done'
-	CANCEL = 'cancel'
-	
-	
-	def __init__(self, data, timeout):
-		self.__request = PacketFactory.createRequest(data)
+
+
+	def __init__(self, tid, timeout):
 		self.__response = None
 		self.__state = Transaction.OPEN
 		self.__timeout = timeout
-		# jak to tady poladit? - ptat se na to nekoho jineho :)
 		self.__createTime = time()
-		self.__event = Event()
 
-	
+
 	def tid(self):
 		return self.__request.tid()
-	
-	
-	@synchronize
-	def setResponse(self, data):
-		if not self.isOpen():
-			raise
-		if self.isTimeout():
-			return False
-		self.__doneTime = time()
-		self.__state = Transaction.DONE
-		self.__response = data
-		self.__event.set()
-		return True
 
 
-	def waitResponse(self, blocking = True):
-		if blocking:
-			self.__event.wait()
-		if self.isTimeout():
-			raise TransactionTimeout()
-		if self.isCancel():
-			raise
+	def setResponse(self, response):
 		if self.isDone():
-			return self.__response
+			return
+		self.__state = Transaction.DONE
+		self.__response = response
+		self.__doneTime = time()
 
 
-	def getRequest(self):
-		return self.__request
-
-
-	@synchronize
-	def checkTimeout(self):
-		if self.__isTimeout():
-			self.__event.set()
-			return True
-		else:
-			return False
-
-
-	def cancel(self):
-		self.__state = Transaction.CANCEL
-	
-	
-	def isOpen(self):
-		return self.__state == Transaction.OPEN
+	def response(self):
+		return self.__response
 
 
 	def isDone(self):
 		return self.__state == Transaction.DONE
 
 
+	def doneAge(self):
+		return time() - self.__doneTime
+
+
+	def __cmp__(self, other):
+		return cmp(self.doneAge(), other.doneAge())
+
+
 	def isTimeout(self):
-		# porovnej casy
-		return False
-
-
-	def isCancel(self):
-		return self.__state == Transaction.CANCEL
+		return (time() - self.__createTime) > self.__timeout
 
 
 # ------------------------------------------------------------------------------
-# TransactionTable
+# TidGenerator
 # ------------------------------------------------------------------------------
 
-class TransactionTable(object):
-	def createTransaction(self, data, timeout):
-		return packet
+class TidGenerator(object):
+	__digits = 6
+	__mask = '%s~%0*d~%d'
 
 
-	def setResponse(self, packet):
-		pass
+	def __init__(self):
+		self.__lock = RLock()
+		self.__counter = 0
 
 
-	def waitResponse(self, transactionId, blocking = True):
-		return data
+	def __inc(self):
+		if self.__counter == 10 ** self.__digits:
+			self.__counter = 0
+		else:
+			self.__counter += 1
+
+
+	def get(self):
+		self.__lock.acquire()
+		args = (self._now(), self.__digits, self.__counter, self._random())
+		tid = self.__mask % args
+		self.__inc()
+		self.__lock.release()
+		return tid
+
+
+	def _now(self):
+		return datetime.now().isoformat().replace('T', '~')
+
+
+	def _random(self):
+		return randint(100000, 999999)
+
+
+# ------------------------------------------------------------------------------
+#
+# ------------------------------------------------------------------------------
+
+class TransactionTable(Thread):
+	def __init__(self):
+		Thread.__init__(self)
+		self.setDaemon()
+		self.__openTransaction = SyncHash()
+		self.__doneTransaction = SyncHash()
+		self.__tidGenerator = TidGenerator()
+
+
+	def createTransaction(self, timeout):
+		tid = self.__tidGenerator.get()
+		transaction = Transaction(tid, timeout)
+		self.__openTransaction.put(tid, transaction)
+		return transaction
+
+
+	def setResponse(self, packet) {
+		tid = packet.tid()
+		transaction = self.__openTransaction.remove(tid)
+		if transaction:
+			transaction.setResponse(packet.data())
+			self.__doneTransaction[tid] = transaction
+
+
+	def getResponse(self, tid, timeout):
+		transaction = self.__doneTransaction.remove(tid, timeout)
+		if transaction:
+			return transaction.getResponse()
+		else:
+			return None
+
+
+	def __deleteTimeoutedTransactions(self):
+		for tid, transaction in self.__openTransaction.itmes():
+			if transaction.isTimeout():
+				self.__openTransaction.remove(tid)
+
+
+	def __deleteForgottenTransactions(self):
+		for tid, transaction in self.__doneTransaction.itmes():
+			if transaction.getDoneAge() > maxDoneWaitTime:
+				self.__doneTransaction.remove(tid)
+
+
+	def __deleteOldDoneTransaction(self):
+		if len(self.__doneTransaction) < self.__maxDoneCount:
+		transactions = self.__doneTransaction.values()
+		transactions.sort()
+		for index in xrange(self.__maxDoneCount, len(transactions)):
+			transaction = transactions[index]
+			tid = transaction.tid()
+			self.__doneTransaction.remove(tid)
+
+
+	def run(self):
+		while True:
+			self.iteration()
 
 
 	def iteration(self):
-		self.__cleanTimeouted()
-		self.__cleanOld()
+		self.__deleteTimeoutedTransactions()
+		self.__deleteForgottenTransactions()
+		self.__deleteOldDoneTransaction()
+		sleep(1.0)
 
 
 # ------------------------------------------------------------------------------
 # LemiCamel
 # ------------------------------------------------------------------------------
 
-class LemiCamel(object):
+class LemiCamel(Thread):
 	def __init__(self, packetReceiver, packetSender, transactions):
+		Thread.__init__(self)
+		self.setDaemon()
 		self.__transactions = transactions
 		self.__packetReceiver = packetReceiver
-		self.__packetReceiver = packetSender
-		self.__requests = FreezeQueue()
+		self.__packetSender = packetSender
+		self.__requests = Queue()
 
 
-	def sendRequest(self, data, timeout = INFINITE_TIMEOUT):
-		packet = self.__transactions.createTransaction(data, timeout)
+	# --------------------------------------------------------------------------
+	# Client side
+	# --------------------------------------------------------------------------
+
+	def sendRequest(self, data, timeout = Timeout.BLOCK):
+		""" Send request to server """
+		transaction = self.__transactions.createTransaction(timeout)
+		tid = transaction.tid()
+		packet = Packet(Packet.RESPONSE, tid, data)
 		self.__packetSender.put(packet)
-		return packet.tid()
+		return tid
 
 
-	def getResponse(self, tid, timeout = BLOCK):
-		return self.__transactions.waitResponse(tid, timeout)
+	def sendSignal(self, data):
+		""" Send signal to server """
+		packet = Packet(Packet.SIGNAL, None, data)
+		self.__packetSender.put(packet)
 
+
+	def getResponse(self, tid, timeout = Timeout.BLOCK):
+		""" Receive response from server """
+		return self.__transactions.getResponse(tid, timeout)
+
+
+	# --------------------------------------------------------------------------
+	# Server side
+	# --------------------------------------------------------------------------
 
 	def getRequest(self):
+		""" Get request for processing """
 		packet = self.__requests.get()
 		return packet.tid(), packet.data()
 
 
 	def sendResponse(self, tid, data):
-		packet = Packet(tid, Packet.RESPONSE, data)
-		while not self.__packetSender.put(packet):
-			pass
-	
-	
-	def putPacket(self, packet):
-		if packet.type() == Packet.REQUEST:
-			while not self.__requests.put(packet):
-				pass
-		elif packet.type() == Packet.RESPONSE:
+		""" Send response for processed request """
+		packet = Packet(Packet.RESPONSE, tid, data)
+		self.__packetSender.put(packet)
+
+
+	# --------------------------------------------------------------------------
+	#
+	# --------------------------------------------------------------------------
+
+	def run(self):
+		while True:
+			self.iteration()
+
+
+	def iteration(self):
+		packet = self.__packetReceiver.get()
+		packetType = packet.type()
+		if packetType in (Packet.REQUEST, Packet.SIGNAL):
+			self.__requests.put(packet):
+		elif packetType == Packet.RESPONSE:
 			self.__transactions.setResponse(packet)
 		else:
-			logging.warning('Unknown packet type %s' % packet.type())
-
-
-"""
-dodat tridu na rychle posazeni na TcpServer a spojeni s jsonrpc
-"""
+			# Neznamy typ packetu
+			pass
