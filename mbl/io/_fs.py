@@ -9,13 +9,33 @@ zpracovavat symlink kdyz je to adresar? -> cyklicke odkazy
 skakat na dalsi fs?
 vytvorit prvne skutecnou cestu realpath() ?
 jak testovat?
+
+symlinks hell
+- zjisti zda symlink ukazuje nekam kde uz si byl
+  vyvolej chybu - podle errorHandler se bud jede dal nebo konci
+
+default je jinej FS zakazanej
+default je nasledovani symlinku zakazano
+kontrola zacykleni je povolena kdyz se povoli symlink
+  - muze narust pametova narocnost - vsechny adresare si je treba pamatovat
+kontrola muze se vypnout
+
+jmena pro:
+followLinks(enable)
+controlCycledLinks(enable)
+descendMount(enable)
+
+je 'enable' dobry nazev pro parametr kde neco povoluji ci zakazuji?
+
 """
+
 
 import re
 import os
 import os.path
 from fnmatch import fnmatch
 from datetime import datetime
+from mbl.util.operator import methodfilter
 
 
 # ------------------------------------------------------------------------------
@@ -183,6 +203,9 @@ class TreeScanner(object):
 		self.setFilter(self.__noFilter)
 		self.setShortEval(False)
 		self.setMaxDepth(None)
+		self.controlCycledLinks(False)
+		self.followLinks(False)
+		self.descendMount(False)
 		self.setFileClass(File)
 		self.setErrorHandler(self.__raiseError)
 
@@ -197,6 +220,23 @@ class TreeScanner(object):
 
 	def setMaxDepth(self, maxDepth):
 		self.__maxDepth = maxDepth
+
+
+	def followLinks(self, enable):
+		self.__followLinks = enable
+		if enable:
+			self.controlCycledLinks(enable)
+
+
+	def controlCycledLinks(self, enable):
+		if enable:
+			raise NotImplemented
+		self.__controlCycledLinks = enable
+		self.__directories = set()
+
+
+	def descendMount(self, enable):
+		self.__descendMount = enable
 
 
 	def setErrorHandler(self, errorHandler):
@@ -223,10 +263,18 @@ class TreeScanner(object):
 		files = list(self.__listFiles(path))
 		for file in files:
 			yield file
-		for file in files:
-			if file.isDirectory() and not file.isLink():
-				for innerFile in self.__listFilesRecursive(file.path(), depth + 1):
-					yield innerFile
+		for directory in filter(self.__canScanDirectory, files):
+			for innerFile in self.__listFilesRecursive(directory.path(), depth + 1):
+				yield innerFile
+
+
+	def __canScanDirectory(self, file):
+		if not file.isDirectory():
+			return False
+		canSymlink = (not file.isLink()) or self.__followLinks
+		canMount = (not file.isMount()) or self.__descendMount
+		can = canSymlink and canMount
+		return can
 
 
 	def __listFiles(self, path):

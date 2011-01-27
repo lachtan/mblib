@@ -47,9 +47,6 @@ class FileInputStream(InputStream):
 		self.__file.close()
 
 
-
-
-
 	def read(self, bytes):
 		super(SocketInputStream, self).read(bytes)
 		try:

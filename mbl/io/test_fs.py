@@ -22,9 +22,12 @@ from sys import argv
 
 path = argv[1]
 scanner = TreeScanner(path)
-scanner.setFilter(pyFilter)
+#scanner.setFilter(pyFilter)
+scanner.followLinks(True)
+scanner.controlCycledLinks(True)
+scanner.descendMount(True)
 #scanner.setMaxDepth(2)
 scanner.setErrorHandler(errorHandler)
-#scanner.ignoreErrors()
+scanner.ignoreErrors()
 for file in scanner.files():
 	print file
