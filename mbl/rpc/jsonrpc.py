@@ -344,7 +344,7 @@ class RpcContext(object):
 		return self.__fromJsonConvertor.convert(value)
 
 
-	def call(self, method, *args):
+	def call(self, method, args):
 		return self.__toJsonConvertor.prepareCall(method, args)
 
 
@@ -352,8 +352,80 @@ class RpcContext(object):
 		return self.__toJsonConvertor.prepareResponse(method, value)
 
 
-	def exception(self, name, *args):
+	def exception(self, name, args):
 		return self.__toJsonConvertor.prepareException(name, args)
+
+
+# ------------------------------------------------------------------------------
+# RpcClient
+# ------------------------------------------------------------------------------
+
+class RpcClient(object):
+	__headers = (
+		'version',
+		'type',
+		'name',
+		'data'
+	)
+
+
+	def __init__(self, rpcContext):
+		self.__rpcContext = rpcContext
+
+
+	def __checkEnvelope(self, answer):
+		if type(answer) != DictType:
+			raise RpcProcessingError("Answer is not Dict type (%s)" % str(type(answer)))
+		for header in self.__headers:
+			if header not in answer:
+				raise RpcProcessingError('Missing header %s' % header)
+		if answer['type'] not in ('response', 'exception'):
+			raise RpcProcessingError('Unknown type %s' % str(answer['type']))
+
+
+	def call(self, method, *args):
+		request = self.prepare(method, *args)
+		response = self.process(request)
+		return = self.evalute(response)
+
+
+	def prepare(self, method, args):
+		return self.__rpcContext.call(method, args)
+
+
+	def process(self. jsonData):
+		raise NotImplemented
+
+
+	def evalute(self, response):
+		answer = self.__rpcContext.loads(response)
+		self.__checkEnvelope(answer)
+		if answer['type'] == 'response':
+			return answer['data']
+		elif answer['type'] == 'exception':
+			raise answer['data']
+		else:
+			raise RpcProcessingError('Unknown type %s' % answer['type'])
+
+
+# ------------------------------------------------------------------------------
+# RpcProxy
+# ------------------------------------------------------------------------------
+
+class RpcProxy(object):
+	def __init__(self, rpcClient):
+		self.__rpcClient = rpcClient
+		self.__createInterface()
+
+
+	def __createInterface(self):
+		for method in self.__rpcClient.call('~~getInterface~~'):
+			methodName = method['name']
+			self.__createMethod(methodName)
+
+
+	def __createMethod(self, methodName):
+		pass
 
 
 # ------------------------------------------------------------------------------
@@ -414,7 +486,7 @@ class RpcServer(object):
 
 
 	def __exception(self, exception):
-		return self.__rpcContext.exception(exception.__class__.__name__, *exception.args)
+		return self.__rpcContext.exception(exception.__class__.__name__, exception.args)
 
 
 	def call(self, jsonData):
@@ -424,47 +496,5 @@ class RpcServer(object):
 			return self.__exception(e)
 		except RpcError, e:
 			return self.__exception(e.args[0])
-
-
-# ------------------------------------------------------------------------------
-# RpcClient
-# ------------------------------------------------------------------------------
-
-class RpcClient(object):
-	__headers = (
-		'version',
-		'type',
-		'name',
-		'data'
-	)
-
-
-	def __init__(self, rpcContext, processCallback):
-		self.__rpcContext = rpcContext
-		self.__process = processCallback
-
-
-	def __checkEnvelope(self, answer):
-		if type(answer) != DictType:
-			raise RpcProcessingError("Answer is not Dict type (%s)" % str(type(answer)))
-		for header in self.__headers:
-			if header not in answer:
-				raise RpcProcessingError('Missing header %s' % header)
-		if answer['type'] not in ('response', 'exception'):
-			raise RpcProcessingError('Unknown type %s' % str(answer['type']))
-
-
-	def call(self, method, *args):
-		request = self.__rpcContext.call(method, *args)
-		answer = self.__process(request)
-		answer = self.__rpcContext.loads(answer)
-		self.__checkEnvelope(answer)
-		if answer['type'] == 'response':
-			return answer['data']
-		elif answer['type'] == 'exception':
-			exception = eval(answer['name'])(*answer['data'])
-			raise exception
-		else:
-			raise RpcProcessingError('Unknown type %s' % answer['type'])
 
 

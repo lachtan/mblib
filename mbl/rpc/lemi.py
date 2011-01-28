@@ -1,8 +1,9 @@
 import re
 import cjson as json
-from threading import RLock
+from threading import Thread, RLock
 from datetime import datetime
 from random import randint
+from types import StringType
 from mbl.io import Timeout
 
 
@@ -19,7 +20,6 @@ class Packet(object):
 		REQUEST,
 		RESPONSE
 	)
-	SIGNAL_TID = '~~signal~~'
 
 
 	def __init__(self, type, tid, data):
@@ -88,7 +88,9 @@ class PacketReceiver(object):
 		dataSize = totalSize - headerSize
 		# cist to metodou a kontrolovat nactene velikosti
 		header = inputStream.read(headerSize)
+		header = json.decode(header)
 		data = inputStream.read(dataSize)
+		packet = Packet(header['tid'], header['type'], data)
 		return packet
 
 
@@ -119,6 +121,7 @@ class PacketSender(Thread):
 
 
 	def __export(self, packet):
+		# chci oddelene aby slo testovat
 		header = {
 			'tid': packet.tid(),
 			'type': packet.type()
@@ -131,54 +134,6 @@ class PacketSender(Thread):
 		outputStream.writeLine(infoLine)
 		outputStream.write(header)
 		outputStream.write(data)
-
-
-# ------------------------------------------------------------------------------
-# Transaction
-# ------------------------------------------------------------------------------
-
-class Transaction(object):
-	OPEN = 'open'
-	DONE = 'done'
-
-
-	def __init__(self, tid, timeout):
-		self.__response = None
-		self.__state = Transaction.OPEN
-		self.__timeout = timeout
-		self.__createTime = time()
-
-
-	def tid(self):
-		return self.__request.tid()
-
-
-	def setResponse(self, response):
-		if self.isDone():
-			return
-		self.__state = Transaction.DONE
-		self.__response = response
-		self.__doneTime = time()
-
-
-	def response(self):
-		return self.__response
-
-
-	def isDone(self):
-		return self.__state == Transaction.DONE
-
-
-	def doneAge(self):
-		return time() - self.__doneTime
-
-
-	def __cmp__(self, other):
-		return cmp(self.doneAge(), other.doneAge())
-
-
-	def isTimeout(self):
-		return (time() - self.__createTime) > self.__timeout
 
 
 # ------------------------------------------------------------------------------
@@ -220,132 +175,32 @@ class TidGenerator(object):
 
 
 # ------------------------------------------------------------------------------
-#
-# ------------------------------------------------------------------------------
-
-class TransactionTable(Thread):
-	def __init__(self):
-		Thread.__init__(self)
-		self.setDaemon()
-		self.__openTransaction = SyncHash()
-		self.__doneTransaction = SyncHash()
-		self.__tidGenerator = TidGenerator()
-
-
-	def createTransaction(self, timeout):
-		tid = self.__tidGenerator.get()
-		transaction = Transaction(tid, timeout)
-		self.__openTransaction.put(tid, transaction)
-		return transaction
-
-
-	def setResponse(self, packet) {
-		tid = packet.tid()
-		transaction = self.__openTransaction.remove(tid)
-		if transaction:
-			transaction.setResponse(packet.data())
-			self.__doneTransaction[tid] = transaction
-
-
-	def getResponse(self, tid, timeout):
-		transaction = self.__doneTransaction.remove(tid, timeout)
-		if transaction:
-			return transaction.getResponse()
-		else:
-			return None
-
-
-	def __deleteTimeoutedTransactions(self):
-		for tid, transaction in self.__openTransaction.itmes():
-			if transaction.isTimeout():
-				self.__openTransaction.remove(tid)
-
-
-	def __deleteForgottenTransactions(self):
-		for tid, transaction in self.__doneTransaction.itmes():
-			if transaction.getDoneAge() > maxDoneWaitTime:
-				self.__doneTransaction.remove(tid)
-
-
-	def __deleteOldDoneTransaction(self):
-		if len(self.__doneTransaction) < self.__maxDoneCount:
-		transactions = self.__doneTransaction.values()
-		transactions.sort()
-		for index in xrange(self.__maxDoneCount, len(transactions)):
-			transaction = transactions[index]
-			tid = transaction.tid()
-			self.__doneTransaction.remove(tid)
-
-
-	def run(self):
-		while True:
-			self.iteration()
-
-
-	def iteration(self):
-		self.__deleteTimeoutedTransactions()
-		self.__deleteForgottenTransactions()
-		self.__deleteOldDoneTransaction()
-		sleep(1.0)
-
-
-# ------------------------------------------------------------------------------
 # LemiCamel
 # ------------------------------------------------------------------------------
 
 class LemiCamel(Thread):
-	def __init__(self, packetReceiver, packetSender, transactions):
+	def __init__(self, packetReceiver, packetSender, requestHandler):
 		Thread.__init__(self)
 		self.setDaemon()
-		self.__transactions = transactions
 		self.__packetReceiver = packetReceiver
 		self.__packetSender = packetSender
-		self.__requests = Queue()
+		self.__requestHandler = requestHandler
+		self.__responseTable = EventDict()
 
 
-	# --------------------------------------------------------------------------
-	# Client side
-	# --------------------------------------------------------------------------
-
-	def sendRequest(self, data, timeout = Timeout.BLOCK):
-		""" Send request to server """
-		transaction = self.__transactions.createTransaction(timeout)
-		tid = transaction.tid()
-		packet = Packet(Packet.RESPONSE, tid, data)
+	def call(self, data, timeout = Timeout.BLOCK):
+		tid = self.__tid()
+		self.__responseTable.create(tid)
+		packet = Packet(Packet.RESPONSE, tid, request)
 		self.__packetSender.put(packet)
-		return tid
+		return self.__responseTable.pop(tid, timeout)
 
 
-	def sendSignal(self, data):
-		""" Send signal to server """
-		packet = Packet(Packet.SIGNAL, None, data)
+	def signal(self, data):
+		tid = self.__tid()
+		packet = Packet(Packet.SIGNAL, tid, data)
 		self.__packetSender.put(packet)
 
-
-	def getResponse(self, tid, timeout = Timeout.BLOCK):
-		""" Receive response from server """
-		return self.__transactions.getResponse(tid, timeout)
-
-
-	# --------------------------------------------------------------------------
-	# Server side
-	# --------------------------------------------------------------------------
-
-	def getRequest(self):
-		""" Get request for processing """
-		packet = self.__requests.get()
-		return packet.tid(), packet.data()
-
-
-	def sendResponse(self, tid, data):
-		""" Send response for processed request """
-		packet = Packet(Packet.RESPONSE, tid, data)
-		self.__packetSender.put(packet)
-
-
-	# --------------------------------------------------------------------------
-	#
-	# --------------------------------------------------------------------------
 
 	def run(self):
 		while True:
@@ -355,10 +210,27 @@ class LemiCamel(Thread):
 	def iteration(self):
 		packet = self.__packetReceiver.get()
 		packetType = packet.type()
-		if packetType in (Packet.REQUEST, Packet.SIGNAL):
-			self.__requests.put(packet):
+		if packetType == Packet.REQUEST:
+			self.__putRequest(packet)
+		if packetType == packet.SIGNAL:
+			self.__putSignal(packet)
 		elif packetType == Packet.RESPONSE:
-			self.__transactions.setResponse(packet)
-		else:
-			# Neznamy typ packetu
-			pass
+			self.__response(packet)
+
+
+	def __putRequest(self, packet):
+		self.__requestHandler.request(self, packet.tid(), packet.data())
+
+
+	def __putSignal(self, packet):
+		self.__requestHandler.signal(self, packet.tid(), packet.data())
+
+
+	def putResponse(self, tid, data):
+		packet = Packet(Packet.RESPONSE, inPacket.tid(), response)
+		self.__packetSender.put(packet)
+
+
+	def __response(self, packet):
+		self.__responseTable.put(packet.tid(), packet.data())
+
