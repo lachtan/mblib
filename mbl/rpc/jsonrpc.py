@@ -1,8 +1,4 @@
 """
-jsonrpc.py
-Martin Blazik, WPI Ringier
-31.3.2008
-
 Za pouziti technologie JSON se snazi doresit veskere nedostatky XML-RPC, kde
 nam predevsim chybi vyjimky, vlastni datove typy, datova narocnost prenosu
 jakoz i casova narocnost parsovani XML. Binarni format se nam jevi jako
@@ -16,7 +12,7 @@ hodnoty puvodniho volani. Knihovna je urcena pro LEMI.
 {"~~class~~": {"class": "MyType", "args": [1.627282, true, 2]}}
 
 Pokud je trida serializovatelna do JSON musi implementovat metodu
-jsonData
+jsonArgs
 
 JSON-RPC ramec
 
@@ -35,27 +31,18 @@ type: exception
 name: "exception-name"
 data: [args]
 
-
-TODO
-zlepsit vyhledavani trid
-  z JSONu podle jmena - ok
-  z pythonu porovnanim rovnou s tridou
-
-
-specialni datove typy
-~~base64~~
-
 """
 
 import re
 import string
-import cjson
+import cjson as json
 import weakref
 from base64 import b64encode, b64decode
 from types import *
 
 
 __version__ = '1.0'
+JSON_EXPORTER = 'jsonArgs'
 
 
 class RpcError(StandardError):
@@ -92,17 +79,15 @@ class ToJsonConvertor(object):
 	__printablePattern = re.compile('[%s]+' % re.escape(string.printable))
 	__minStringLength = 20
 	__base64Weight = 1.5
+	__nonPrintableWeight = 5
 
 
-	def __init__(self, jsonRpc):
-		self.__jsonRpc = weakref.proxy(jsonRpc)
+	def __init__(self, rpcContext):
+		self.__rpcContext = weakref.proxy(rpcContext)
 
 
 	def __convertList(self, lst):
-		data = []
-		for item in lst:
-			data.append(self.__convert(item))
-		return data
+		return map(self.__convert, lst)
 
 
 	def __convertDict(self, dct):
@@ -117,7 +102,7 @@ class ToJsonConvertor(object):
 		if totalLength < self.__minStringLength:
 			return False
 		notPrintableLength = len(self.__printablePattern.sub('', data))
-		jsonLength = totalLength + 5 * notPrintableLength
+		jsonLength = totalLength + self.__nonPrintableWeight * notPrintableLength
 		base64Length = totalLength * self.__base64Weight
 		return jsonLength > base64Length
 
@@ -136,23 +121,16 @@ class ToJsonConvertor(object):
 			return data
 
 
-	def __getConvertor(self, obj):
-		_type = self.__jsonRpc.getType(obj.__class__.__name__)
-		if _type:
-			return _type['convertor']
-		else:
-			return None
-
-
 	def __convertClass(self, obj):
-		convertor = self.__getConvertor(obj)
+		typeInfo = self.__rpcContext.getClassInfo(obj)
+		convertor = typeInfo['convertor']
 		if convertor:
-			cls, args = convertor(obj)
+			args = convertor(obj)
 		else:
-			cls, args = obj.jsonData()
+			args = getattr(obj, JSON_EXPORTER)()
 		data = {
 			'~~class~~': {
-				'class': cls,
+				'class': typeInfo['name'],
 				'args': self.__convert(args)
 			}
 		}
@@ -160,7 +138,7 @@ class ToJsonConvertor(object):
 
 
 	def __isConvertable(self, obj):
-		return self.__getConvertor(obj) or hasattr(obj, 'jsonData')
+		return self.__rpcContext.getClassInfo(obj) is not None
 
 
 	def __convert(self, value):
@@ -188,8 +166,8 @@ class ToJsonConvertor(object):
 
 	def __encode(self, value):
 		try:
-			return cjson.encode(value)
-		except cjson.EncodeError, e:
+			return json.encode(value)
+		except json.EncodeError, e:
 			raise RpcProcessingError(*e.args)
 
 
@@ -230,19 +208,12 @@ class ToJsonConvertor(object):
 # ------------------------------------------------------------------------------
 
 class FromJsonConvertor(object):
-	__preset = {
-		'null': None,
-		'true': True,
-		'false': False
-	}
-
-
-	def __init__(self, jsonRpc):
-		self.__jsonRpc = weakref.proxy(jsonRpc)
+	def __init__(self, rpcContext):
+		self.__rpcContext = weakref.proxy(rpcContext)
 
 
 	def loads(self, value):
-		return eval(value, self.__preset)
+		return json.decode(value)
 
 
 	def __checkClassType(self, value):
@@ -252,12 +223,20 @@ class FromJsonConvertor(object):
 	def __convertClass(self, value):
 		# dalsi kontroly!
 		info = value['~~class~~']
-		cls = info['class']
-		if cls == '~~base64~~':
+		typeName = info['class']
+		if typeName == '~~base64~~':
 			return b64decode(info['args'][0])
 		else:
 			args = self.__convert(info['args'])
-			return self.__jsonRpc.createObject(cls, args)
+			return self.__createObject(typeName, args)
+
+
+	def __createObject(self, typeName, args):
+		typeInfo = self.__rpcContext.getTypeInfo(typeName)
+		if typeInfo is None:
+			raise CreateObjectError('Unknown type %s' % str(typeName))
+		cls = typeInfo['class']
+		return cls(*args)
 
 
 	def __convertList(self, lst):
@@ -296,12 +275,11 @@ class FromJsonConvertor(object):
 # ------------------------------------------------------------------------------
 
 class RpcContext(object):
-	__types = {}
-
-
 	def __init__(self):
 		self.__toJsonConvertor = ToJsonConvertor(self)
 		self.__fromJsonConvertor = FromJsonConvertor(self)
+		self.__names = {}
+		self.__types = {}
 
 
 	def version(self):
@@ -309,31 +287,40 @@ class RpcContext(object):
 
 
 	def registerType(self, cls, toJsonConvertor = None):
+		self.registerNamedType(cls.__name__, cls, toJsonConvertor)
+
+
+	def registerNamedType(self, typeName, cls, toJsonConvertor = None):
 		if type(cls) not in (TypeType, ClassType):
 			raise AttributeError('%s is not class' % str(cls))
-		if cls.__name__ in self.__types:
-			raise NameError('Type "%s" already registered' % cls.__name__)
-		if toJsonConvertor is None and not hasattr(cls, 'jsonData'):
-			raise AttributeError("Class hasn't method jsonData")
-		self.__types[cls.__name__] = {
+		if typeName in self.__names:
+			raise NameError('Type "%s" already registered' % typeName)
+		if cls in self.__types:
+			raise KeyError('Type "%s" already registered' % str(cls))
+		if toJsonConvertor is None and not hasattr(cls, JSON_EXPORTER):
+			raise AttributeError("Class hasn't method %s" % JSON_EXPORTER)
+		self.__types[cls] = {
+			'name': typeName,
 			'class': cls,
 			'convertor': toJsonConvertor
 		}
+		self.__names[typeName] = cls
 
 
-	def createObject(self, cls, args):
-		try:
-			_type = self.getType(cls)
-			if _type is None:
-				return eval(cls)(*args)
-			else:
-				return _type['class'](*args)
-		except NameError:
-			raise CreateObjectError("Can't create object from class %s" % repr(cls))
+	def getClassInfo(self, obj):
+		cls = obj.__class__
+		if cls in self.__types:
+			return self.__types[cls].copy()
+		else:
+			return None
 
 
-	def getType(self, name):
-		return self.__types.get(name, None)
+	def getTypeInfo(self, typeName):
+		if typeName in self.__names:
+			cls = self.__names[typeName]
+			return self.__types[cls].copy()
+		else:
+			return None
 
 
 	def dumps(self, value):
@@ -383,18 +370,18 @@ class RpcClient(object):
 			raise RpcProcessingError('Unknown type %s' % str(answer['type']))
 
 
-	def call(self, method, *args):
-		request = self.prepare(method, *args)
+	def call(self, method, args):
+		request = self.prepare(method, args)
 		response = self.process(request)
-		return = self.evalute(response)
+		return self.evalute(response)
+
+
+	def process(self, jsonData):
+		raise NotImplemented
 
 
 	def prepare(self, method, args):
 		return self.__rpcContext.call(method, args)
-
-
-	def process(self. jsonData):
-		raise NotImplemented
 
 
 	def evalute(self, response):
@@ -425,7 +412,14 @@ class RpcProxy(object):
 
 
 	def __createMethod(self, methodName):
-		pass
+		def callWithName(*args):
+			return self.__call(methodName, args)
+
+		return callWithName
+
+
+	def __call(self, methodName, args):
+		return self.__rpcClient.call(methodName, args)
 
 
 # ------------------------------------------------------------------------------

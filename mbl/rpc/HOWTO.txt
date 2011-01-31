@@ -1,3 +1,14 @@
+31.1.2011
+jsonrpc
+Jak metoda jsonArgs tak konvertovaci funkce vraci pole argumentu pro konstruktor
+pri registraci
+RpcContext.registerType()
+RpcContext.registerNamedType()
+by misto toJsonConvertor mohla byt trida, ktera umi udelat
+jak toJsonConvertor tak i fromJsonConvertor
+
+
+??.1.2001
 PacketSender a PacketReceiver vubec nemusi sedet nad socketem a dokonce ne
 ani nad streamem. Tyto tridy mou byt klidne obal na 0MQ.
 
