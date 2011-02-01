@@ -1,5 +1,11 @@
 import unittest
-from mbl.rpc.jsonrpc import RpcContext, ToJsonConvertor, FromJsonConvertor, CreateObjectError
+from mbl.rpc.jsonrpc import RpcProcessingError
+from mbl.rpc.jsonrpc import RpcContext
+from mbl.rpc.jsonrpc import ToJsonConvertor
+from mbl.rpc.jsonrpc import FromJsonConvertor
+from mbl.rpc.jsonrpc import CreateObjectError
+from mbl.rpc.jsonrpc import RpcClient
+from mbl.rpc.jsonrpc import RpcServer
 
 # ------------------------------------------------------------------------------
 #
@@ -18,17 +24,25 @@ class TypeWithoutJsonConvert(object):
 		return self.__class__ == other.__class__ and self.__value == other.value()
 
 
-# ------------------------------------------------------------------------------
-#
-# ------------------------------------------------------------------------------
 
 class TypeWithJsonConvert(TypeWithoutJsonConvert):
 	def __init__(self, value):
 		TypeWithoutJsonConvert.__init__(self, value)
 
 
-	def jsonArgs(self):
+	def toJson(self):
 		return [self.value()]
+
+
+class JsonConvertor(object):
+	@staticmethod
+	def toJson(obj):
+		return [obj.value()]
+
+
+	@staticmethod
+	def fromJson(cls, args):
+		return cls(*args)
 
 
 # ------------------------------------------------------------------------------
@@ -59,7 +73,7 @@ class RpcContextTest(unittest.TestCase):
 
 
 	def test_binary(self):
-		data = 10 * ''.join(map(chr, range(256)))
+		data = ''.join(map(chr, range(256)))
 		jsonData = self.__rpcContext.dumps(data)
 		decodedData = self.__rpcContext.loads(jsonData)
 		self.assertEquals(data, decodedData)
@@ -86,7 +100,14 @@ class ToJsonConvertorTest(unittest.TestCase):
 		self.__assertConvert(r'"some unicode \u1234"', u'some unicode \u1234')
 		self.__assertConvert('[1, 2, 3]', [1, 2, 3])
 		self.__assertConvert('[1, 2, 3]', (1, 2, 3))
-		self.__assertConvert('{"1": 2, "2": 3}', {1: 2, 2: 3})
+		self.__assertConvert('{"a": 1, "b": 2}', {'a': 1, 'b': 2})
+
+
+	def test_exceptions(self):
+		jsonData = '{"~~class~~": {"args": [1, 2], "class": "Exception"}}'
+		self.__assertConvert(jsonData, Exception(1, 2))
+		jsonData = '{"~~class~~": {"args": ["negative number"], "class": "AttributeError"}}'
+		self.__assertConvert(jsonData, AttributeError('negative number'))
 
 
 	def __assertConvert(self, jsonData, value):
@@ -101,14 +122,10 @@ class ToJsonConvertorTest(unittest.TestCase):
 
 
 	def test_convertClassWithoutConvert(self):
-		self.__rpcContext.registerType(TypeWithoutJsonConvert, self.__convert)
+		self.__rpcContext.registerType(TypeWithoutJsonConvert, JsonConvertor)
 		value = TypeWithoutJsonConvert(123)
 		expected = '{"~~class~~": {"args": [123], "class": "TypeWithoutJsonConvert"}}'
 		self.assertEquals(expected, self.__toJsonConvertor.convert(value))
-
-
-	def __convert(self, obj):
-		return [obj.value()]
 
 
 # ------------------------------------------------------------------------------
@@ -149,4 +166,84 @@ class FromJsonConvertorTest(unittest.TestCase):
 		jsonData = '{"~~class~~": {"args": [123], "class": "UnknownClass"}}'
 		self.assertRaises(CreateObjectError, self.__fromJsonConvertor.convert, jsonData)
 
+
+# ------------------------------------------------------------------------------
+# FromJsonConvertor
+# ------------------------------------------------------------------------------
+
+class RpcClientTest(unittest.TestCase):
+	def setUp(self):
+		self.__rpcContext = RpcContext()
+		self.__rpcClient = RpcClient(self.__rpcContext)
+
+
+	def test_prepare(self):
+		methodName = 'add'
+		args = (1, 2)
+		jsonData = self.__rpcClient.prepare(methodName, args)
+		callStruct = self.__rpcContext.loads(jsonData)
+		expectedStruct = {
+			'version': '1.0',
+			'type': 'call',
+			'name': 'add',
+			'data': [1, 2]
+		}
+		self.assertEquals(expectedStruct, callStruct)
+
+
+	def test_evaluate(self):
+		responseStruct = {
+			'version': '1.0',
+			'type': 'response',
+			'name': 'add',
+			'data': [1, 2]
+		}
+		jsonResponse = self.__rpcContext.dumps(responseStruct)
+		response = self.__rpcClient.evaluate(jsonResponse)
+		self.assertEquals([1, 2], response)
+
+
+	def test_evaluateException(self):
+		responseStruct = {
+			'version': '1.0',
+			'type': 'exception',
+			'name': 'add',
+			'data': ValueError('bad number')
+		}
+		jsonResponse = self.__rpcContext.dumps(responseStruct)
+		self.assertRaises(ValueError, self.__rpcClient.evaluate, jsonResponse)
+
+
+	def test_evaluateBadJsonData(self):
+		jsonData = 'bad json data'
+		self.assertRaises(RpcProcessingError, self.__rpcClient.evaluate, jsonData)
+
+
+	def test_evaluateUnknwonType(self):
+		jsonResponse = """
+			{
+				"version": "1.0",
+				"type": "response",
+				"name": "add",
+				"data": {
+					"~~class~~": {
+						"class": "UnknownType",
+						"args": []
+					}
+				}
+			}
+		"""
+		self.assertRaises(RpcProcessingError, self.__rpcClient.evaluate, jsonResponse)
+
+
+
+	def test_evaluateBadResponseType(self):
+		responseStruct = {
+			'version': '1.0',
+			'type': 'unknown',
+			'name': 'add',
+			'data': None
+		}
+		jsonResponse = self.__rpcContext.dumps(responseStruct)
+		self.assertRaises(RpcProcessingError, self.__rpcClient.evaluate, jsonResponse)
 

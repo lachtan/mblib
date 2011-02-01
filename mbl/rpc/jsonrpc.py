@@ -16,33 +16,35 @@ jsonArgs
 
 JSON-RPC ramec
 
-version: 1.0
-type: call
-name: "method-name"
+version: "1.0"
+type: "call"
+name: methodName
 data: [args]
 
-version: 1.0
-type: response
-name: "method-name"
-data: return-value
+version: "1.0"
+type: "response"
+name: methodName
+data: returnValue
 
-version: 1.0
-type: exception
-name: "exception-name"
-data: [args]
+version: "1.0"
+type: "exception"
+name: methodName
+data: exception
 
 """
 
 import re
 import string
-import cjson as json
 import weakref
+import exceptions
+import cjson as json
 from base64 import b64encode, b64decode
 from types import *
 
 
 __version__ = '1.0'
-JSON_EXPORTER = 'jsonArgs'
+TO_JSON_METHOD = 'toJson'
+FROM_JSON_METHOD = 'fromJson'
 
 
 class RpcError(StandardError):
@@ -86,6 +88,57 @@ class ToJsonConvertor(object):
 		self.__rpcContext = weakref.proxy(rpcContext)
 
 
+	def convert(self, value):
+		return self.__encode(self.__convert(value))
+
+
+	def prepareCall(self, method, args):
+		params = self.__prepareBase()
+		params['type'] = 'call'
+		params['name'] = str(method)
+		if type(args) not in (ListType, TupleType):
+			raise AttributeError
+		params['data'] = args
+		return self.convert(params)
+
+
+	def prepareResponse(self, method, value):
+		params = self.__prepareBase()
+		params['type'] = 'response'
+		params['name'] = str(method)
+		params['data'] = value
+		return self.convert(params)
+
+
+	def prepareException(self, method, exception):
+		typeInfo = self.__rpcContext.getClassInfo(obj)
+		if typeInfo is None:
+			raise AttributeError('Unknown exception: %s' % str(exception))
+		if type(args) not in (ListType, TupleType):
+			raise AttributeError
+		params = self.__prepareBase()
+		params['type'] = 'exception'
+		params['name'] = method
+		params['data'] = exception
+		return self.convert(params)
+
+
+	def __convert(self, value):
+		valueType = type(value)
+		if valueType in (ListType, TupleType):
+			return self.__convertList(value)
+		elif valueType == DictType:
+			return self.__convertDict(value)
+		elif valueType == StringType:
+			return self.__convertString(value)
+		elif self.__isConvertable(value):
+			return self.__convertClass(value)
+		elif valueType in self.__baseTypes:
+			return value
+		else:
+			raise ValueError("Can't convert %s to JSON" % repr(value))
+
+
 	def __convertList(self, lst):
 		return map(self.__convert, lst)
 
@@ -125,9 +178,9 @@ class ToJsonConvertor(object):
 		typeInfo = self.__rpcContext.getClassInfo(obj)
 		convertor = typeInfo['convertor']
 		if convertor:
-			args = convertor(obj)
+			args = convertor.toJson(obj)
 		else:
-			args = getattr(obj, JSON_EXPORTER)()
+			args = getattr(obj, TO_JSON_METHOD)()
 		data = {
 			'~~class~~': {
 				'class': typeInfo['name'],
@@ -141,29 +194,6 @@ class ToJsonConvertor(object):
 		return self.__rpcContext.getClassInfo(obj) is not None
 
 
-	def __convert(self, value):
-		valueType = type(value)
-		if valueType in (ListType, TupleType):
-			return self.__convertList(value)
-		elif valueType == DictType:
-			return self.__convertDict(value)
-		elif valueType == StringType:
-			return self.__convertString(value)
-		elif valueType in self.__baseTypes:
-			return value
-		elif self.__isConvertable(value):
-			return self.__convertClass(value)
-		else:
-			raise ValueError("Can't convert %s to JSON" % repr(value))
-
-
-	def __prepareBase(self):
-		params = {
-			'version': __version__
-		}
-		return params
-
-
 	def __encode(self, value):
 		try:
 			return json.encode(value)
@@ -171,36 +201,11 @@ class ToJsonConvertor(object):
 			raise RpcProcessingError(*e.args)
 
 
-	def convert(self, value):
-		return self.__encode(self.__convert(value))
-
-
-	def prepareCall(self, method, args):
-		params = self.__prepareBase()
-		params['type'] = 'call'
-		params['name'] = str(method)
-		if type(args) not in (ListType, TupleType):
-			raise AttributeError
-		params['data'] = args
-		return self.convert(params)
-
-
-	def prepareResponse(self, method, value):
-		params = self.__prepareBase()
-		params['type'] = 'response'
-		params['name'] = str(method)
-		params['data'] = value
-		return self.convert(params)
-
-
-	def prepareException(self, name, args):
-		params = self.__prepareBase()
-		params['type'] = 'exception'
-		params['name'] = str(name)
-		if type(args) not in (ListType, TupleType):
-			raise AttributeError
-		params['data'] = args
-		return self.convert(params)
+	def __prepareBase(self):
+		params = {
+			'version': __version__
+		}
+		return params
 
 
 # ------------------------------------------------------------------------------
@@ -236,7 +241,15 @@ class FromJsonConvertor(object):
 		if typeInfo is None:
 			raise CreateObjectError('Unknown type %s' % str(typeName))
 		cls = typeInfo['class']
-		return cls(*args)
+		convertor = typeInfo['convertor']
+		if convertor is None:
+			if hasattr(cls, FROM_JSON_METHOD):
+				fromJson = getattr(cls, FROM_JSON_METHOD)
+				return fromJson(args)
+			else:
+				return cls(*args)
+		else:
+			return convertor.fromJson(cls, args)
 
 
 	def __convertList(self, lst):
@@ -271,6 +284,22 @@ class FromJsonConvertor(object):
 
 
 # ------------------------------------------------------------------------------
+#
+# ------------------------------------------------------------------------------
+
+class BaseJsonConvertor(object):
+	@staticmethod
+	def fromJson(cls, args):
+		return cls(*args)
+
+
+class ExceptionJsonConvertor(BaseJsonConvertor):
+	@staticmethod
+	def toJson(exception):
+		return exception.args
+
+
+# ------------------------------------------------------------------------------
 # RpcContext
 # ------------------------------------------------------------------------------
 
@@ -280,31 +309,78 @@ class RpcContext(object):
 		self.__fromJsonConvertor = FromJsonConvertor(self)
 		self.__names = {}
 		self.__types = {}
+		self.__registerExceptions()
+
+
+	def __registerExceptions(self):
+		baseExceptions = (
+			exceptions.BaseException,
+			exceptions.Exception,
+			exceptions.GeneratorExit,
+			exceptions.StopIteration,
+			exceptions.SystemExit,
+		)
+		for exception in baseExceptions:
+			self.registerType(exception, ExceptionJsonConvertor)
+		for exception in dir(exceptions):
+			if exception.endswith('Error'):
+				cls = getattr(exceptions, exception)
+				self.registerType(cls, ExceptionJsonConvertor)
 
 
 	def version(self):
 		return __version__
 
 
-	def registerType(self, cls, toJsonConvertor = None):
-		self.registerNamedType(cls.__name__, cls, toJsonConvertor)
+	def registerType(self, cls, jsonConvertor = None):
+		self.registerNamedType(cls.__name__, cls, jsonConvertor)
 
 
-	def registerNamedType(self, typeName, cls, toJsonConvertor = None):
-		if type(cls) not in (TypeType, ClassType):
-			raise AttributeError('%s is not class' % str(cls))
-		if typeName in self.__names:
-			raise NameError('Type "%s" already registered' % typeName)
-		if cls in self.__types:
-			raise KeyError('Type "%s" already registered' % str(cls))
-		if toJsonConvertor is None and not hasattr(cls, JSON_EXPORTER):
-			raise AttributeError("Class hasn't method %s" % JSON_EXPORTER)
-		self.__types[cls] = {
+	def registerNamedType(self, typeName, cls, jsonConvertor = None):
+		self.__checkTypeClass(cls)
+		self.__checkTypeName(typeName)
+		self.__checkRegisterBefore(cls)
+		if jsonConvertor is None:
+			self.__checkToJsonMethod(cls)
+		else:
+			self.__checkJsonConvertor(jsonConvertor)
+		typeInfo = {
 			'name': typeName,
 			'class': cls,
-			'convertor': toJsonConvertor
+			'convertor': jsonConvertor
 		}
+		self.__types[cls] = typeInfo
 		self.__names[typeName] = cls
+
+
+	def __checkTypeClass(self, cls):
+		if type(cls) not in (TypeType, ClassType):
+			raise AttributeError('%s is not class' % str(cls))
+
+
+	def __checkTypeName(self, typeName):
+		if typeName in self.__names:
+			raise NameError('TypeName "%s" already registered' % typeName)
+
+
+	def __checkRegisterBefore(self, cls):
+		if cls in self.__types:
+			raise KeyError('Type "%s" already registered' % str(cls))
+
+
+	def __checkJsonConvertor(self, convertor):
+		self.__checkToJsonMethod(convertor)
+		self.__checkFromJsonMethod(convertor)
+
+
+	def __checkToJsonMethod(self, cls):
+		if not hasattr(cls, TO_JSON_METHOD):
+			raise AttributeError("Class hasn't method %s" % TO_JSON_METHOD)
+
+
+	def __checkFromJsonMethod(self, cls):
+		if not hasattr(cls, FROM_JSON_METHOD):
+			raise AttributeError("Class hasn't method %s" % FROM_JSON_METHOD)
 
 
 	def getClassInfo(self, obj):
@@ -321,6 +397,10 @@ class RpcContext(object):
 			return self.__types[cls].copy()
 		else:
 			return None
+
+
+	def getTypes(self):
+		return self.__types.keys()
 
 
 	def dumps(self, value):
@@ -377,6 +457,7 @@ class RpcClient(object):
 
 
 	def process(self, jsonData):
+		# nekam odesle jsonData a zas jsonData ziska a vrati
 		raise NotImplemented
 
 
@@ -384,15 +465,20 @@ class RpcClient(object):
 		return self.__rpcContext.call(method, args)
 
 
-	def evalute(self, response):
-		answer = self.__rpcContext.loads(response)
+	def evaluate(self, response):
+		try:
+			answer = self.__rpcContext.loads(response)
+		except json.DecodeError, e:
+			raise RpcProcessingError(e)
+		except CreateObjectError, e:
+			raise RpcProcessingError(e)
 		self.__checkEnvelope(answer)
 		if answer['type'] == 'response':
 			return answer['data']
 		elif answer['type'] == 'exception':
 			raise answer['data']
 		else:
-			raise RpcProcessingError('Unknown type %s' % answer['type'])
+			raise RpcProcessingError('Unknown response type %s' % answer['type'])
 
 
 # ------------------------------------------------------------------------------

@@ -7,6 +7,8 @@ RpcContext.registerNamedType()
 by misto toJsonConvertor mohla byt trida, ktera umi udelat
 jak toJsonConvertor tak i fromJsonConvertor
 
+Autoregistrace zakladnich vyjimek! exceptions.*
+
 
 ??.1.2001
 PacketSender a PacketReceiver vubec nemusi sedet nad socketem a dokonce ne
